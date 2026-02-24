@@ -5,48 +5,96 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>蕨積 | 數據管理後台</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-gray-100 p-6">
+<body class="bg-slate-100 p-6">
     <div class="max-w-xl mx-auto space-y-8">
-        <div class="bg-white p-6 rounded-2xl shadow">
-            <h2 class="text-xl font-bold text-green-700 mb-4">🌿 農場進出貨登錄</h2>
-            <form id="farmForm" class="space-y-3">
-                <input type="text" id="batch_number" placeholder="批號 (如: B20260224)" class="w-full border p-2 rounded">
-                <input type="text" id="plant_name" placeholder="植物品種" class="w-full border p-2 rounded">
-                <div class="grid grid-cols-2 gap-2">
-                    <input type="date" id="in_date" class="border p-2 rounded">
-                    <input type="date" id="out_date" class="border p-2 rounded">
+        <h1 class="text-2xl font-black text-slate-800">蕨積 管理後台</h1>
+
+        <div class="bg-white p-6 rounded-2xl shadow-xl">
+            <h2 class="text-xl font-bold text-green-700 mb-4 flex items-center">
+                <span class="mr-2">🌿</span> 農場數據登錄
+            </h2>
+            <form id="farmForm" class="space-y-4">
+                <input type="text" id="batch_number" placeholder="批號 (如: B2026-001)" class="w-full border p-3 rounded-xl bg-gray-50 outline-none focus:border-green-500">
+                <input type="text" id="plant_name" placeholder="植物品種" class="w-full border p-3 rounded-xl bg-gray-50 outline-none focus:border-green-500">
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="text-xs text-gray-400">進貨日<input type="date" id="in_date" class="w-full border p-2 rounded-lg mt-1"></label>
+                    <label class="text-xs text-gray-400">出貨日<input type="date" id="out_date" class="w-full border p-2 rounded-lg mt-1"></label>
                 </div>
-                <input type="text" id="photo_url" placeholder="照片網址 (暫時手動輸入)" class="w-full border p-2 rounded">
-                <button type="button" onclick="submitFarm()" class="w-full bg-green-600 text-white py-2 rounded">儲存農場數據</button>
+                
+                <div class="border-2 border-dashed border-gray-200 p-4 rounded-xl text-center">
+                    <input type="file" id="photo_file" accept="image/*" class="hidden">
+                    <button type="button" onclick="document.getElementById('photo_file').click()" class="text-sm bg-gray-200 px-4 py-2 rounded-lg">📸 選擇或拍攝照片</button>
+                    <p id="upload-status" class="text-[10px] mt-2 text-gray-400 font-mono italic">尚未上傳檔案</p>
+                </div>
+
+                <button type="button" id="btn-farm" onclick="submitFarm()" class="w-full bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg active:scale-95 transition">儲存並上傳</button>
             </form>
         </div>
 
-        <div class="bg-white p-6 rounded-2xl shadow">
-            <h2 class="text-xl font-bold text-blue-700 mb-4">🏗️ 新增建案資料</h2>
-            <form id="projectForm" class="space-y-3">
-                <input type="text" id="p_name" placeholder="建案名稱" class="w-full border p-2 rounded">
-                <input type="number" id="p_area" placeholder="建置平方米" class="w-full border p-2 rounded">
-                <input type="number" id="p_plants" placeholder="植栽總數量" class="w-full border p-2 rounded">
-                <label class="flex items-center space-x-2">
-                    <input type="checkbox" id="p_recycled"> <span>使用循環資材</span>
+        <div class="bg-white p-6 rounded-2xl shadow-xl">
+            <h2 class="text-xl font-bold text-blue-700 mb-4 flex items-center">
+                <span class="mr-2">🏗️</span> 新增案場資料
+            </h2>
+            <form id="projectForm" class="space-y-4">
+                <input type="text" id="p_name" placeholder="建案名稱" class="w-full border p-3 rounded-xl bg-gray-50">
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="number" id="p_area" placeholder="平方米" class="border p-3 rounded-xl bg-gray-50">
+                    <input type="number" id="p_plants" placeholder="植栽數" class="border p-3 rounded-xl bg-gray-50">
+                </div>
+                <label class="flex items-center space-x-2 text-sm font-bold text-gray-600">
+                    <input type="checkbox" id="p_recycled" class="w-4 h-4"> <span>使用循環資材 (碳排優待)</span>
                 </label>
-                <button type="button" onclick="submitProject()" class="w-full bg-blue-600 text-white py-2 rounded">建立案場</button>
+                <button type="button" onclick="submitProject()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg active:scale-95 transition">建立案場</button>
             </form>
         </div>
     </div>
 
     <script>
+        // 從後端獲取 Supabase 配置 (或者你可以直接在這邊寫死 URL/KEY)
+        const supabaseUrl = 'https://fvvbmedluaipqiqjiujj.supabase.co';
+        const supabaseKey = 'sb_publishable_Y84MXL8nTojn_QJ_ba1e3w_GV7S7QRt';
+        const supabase = supabasejs.createClient(supabaseUrl, supabaseKey);
+
         async function submitFarm() {
-            const data = {
+            const btn = document.getElementById('btn-farm');
+            const fileInput = document.getElementById('photo_file');
+            const file = fileInput.files[0];
+            let photoUrl = "";
+
+            btn.innerText = "上傳中...";
+            btn.disabled = true;
+
+            // 1. 上傳圖片到 Supabase Storage
+            if (file) {
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${Date.now()}.${fileExt}`;
+                const { data, error } = await supabase.storage.from('evidences').upload(fileName, file);
+                
+                if (error) { alert('圖片上傳失敗'); return; }
+                const { data: publicUrlData } = supabase.storage.from('evidences').getPublicUrl(fileName);
+                photoUrl = publicUrlData.publicUrl;
+            }
+
+            // 2. 存入資料庫
+            const payload = {
                 batch_number: document.getElementById('batch_number').value,
                 plant_name: document.getElementById('plant_name').value,
                 in_stock_date: document.getElementById('in_date').value,
                 out_stock_date: document.getElementById('out_date').value,
-                photo_url: document.getElementById('photo_url').value
+                photo_url: photoUrl
             };
-            await fetch('/api/add_farm', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-            alert('農場數據已存檔');
+
+            const res = await fetch('/api/add_farm', { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify(payload) 
+            });
+
+            if (res.ok) { alert('農場數據登錄成功！'); location.reload(); }
+            btn.innerText = "儲存並上傳";
+            btn.disabled = false;
         }
 
         async function submitProject() {
@@ -57,8 +105,13 @@
                 is_recycled: document.getElementById('p_recycled').checked
             };
             await fetch('/api/add_project', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
-            alert('建案已建立');
+            alert('案場建立完成');
+            location.reload();
         }
+
+        document.getElementById('photo_file').onchange = function() {
+            document.getElementById('upload-status').innerText = "已選取檔案: " + this.files[0].name;
+        };
     </script>
 </body>
 </html>
