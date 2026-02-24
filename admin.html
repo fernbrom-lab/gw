@@ -13,15 +13,20 @@
             font-weight: 600; color: #1e293b; margin-right: 1rem; cursor: pointer;
         }
         input[type="file"]::file-selector-button:hover { background: #cbd5e1; }
+        .upload-success { background-color: #f0fdf4; border: 1px solid #86efac; }
+        .upload-error { background-color: #fef2f2; border: 1px solid #fecaca; }
     </style>
 </head>
 <body class="bg-slate-50 p-4 font-sans text-sm antialiased">
     <div class="max-w-xl mx-auto space-y-6">
         <!-- 狀態列 -->
-        <div class="bg-white p-3 rounded-2xl shadow-sm flex items-center justify-between text-xs text-gray-500 border">
+        <div class="bg-white p-4 rounded-2xl shadow-sm flex items-center justify-between text-xs text-gray-500 border">
             <div class="flex items-center gap-2">
                 <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                 <span>後端: <span id="backend-status" class="font-mono">檢查中...</span></span>
+            </div>
+            <div>
+                <a href="/" class="text-blue-600 hover:text-blue-800" target="_blank">前往前台</a>
             </div>
         </div>
 
@@ -30,33 +35,39 @@
             <h2 class="text-xl font-bold text-green-700 mb-4 italic">🌿 植物入庫數據</h2>
             <form id="farmForm" class="grid grid-cols-2 gap-3">
                 <input type="text" name="batch_number" placeholder="批號 *" required
-                       class="col-span-2 border p-3 rounded-xl">
-                <input type="text" name="plant_name" placeholder="品種" class="border p-3 rounded-xl">
-                <input type="number" name="quantity" placeholder="數量" class="border p-3 rounded-xl">
+                       class="col-span-2 border p-3 rounded-xl bg-white focus:ring-2 focus:ring-green-200">
+                <input type="text" name="plant_name" placeholder="品種" 
+                       class="border p-3 rounded-xl bg-white focus:ring-2 focus:ring-green-200">
+                <input type="number" name="quantity" placeholder="數量" 
+                       class="border p-3 rounded-xl bg-white focus:ring-2 focus:ring-green-200">
                 <div class="space-y-1">
                     <label class="text-[10px] ml-1 font-bold text-gray-400">📅 進貨日</label>
-                    <input type="date" name="in_date" class="w-full border p-2 rounded-xl">
+                    <input type="date" name="in_date" class="w-full border p-2 rounded-xl bg-white">
                 </div>
                 <div class="space-y-1">
                     <label class="text-[10px] ml-1 font-bold text-gray-400">📆 出貨日</label>
-                    <input type="date" name="out_date" class="w-full border p-2 rounded-xl">
+                    <input type="date" name="out_date" class="w-full border p-2 rounded-xl bg-white">
                 </div>
-                <input type="file" name="photo" accept="image/*" class="col-span-2 text-xs border p-2 rounded-xl">
+                <input type="file" name="photo" accept="image/*" 
+                       class="col-span-2 text-xs border p-2 rounded-xl file:mr-3 file:bg-green-100 file:text-green-800 file:border-0 file:rounded-lg">
                 <button type="button" onclick="saveFarm()" 
-                        class="col-span-2 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-bold">
+                        class="col-span-2 bg-green-600 hover:bg-green-700 active:scale-[0.98] text-white py-3 rounded-xl font-bold shadow-md">
                     上傳農場數據
                 </button>
             </form>
+            <!-- 上傳結果顯示 -->
+            <div id="farm-result" class="mt-4 p-3 rounded-xl text-sm hidden"></div>
         </div>
 
         <!-- 工程案場 -->
         <div class="bg-white p-6 rounded-3xl shadow-lg border border-blue-200">
             <h2 class="text-xl font-bold text-blue-700 mb-4 italic">🏗️ 施工與物料登錄</h2>
             <div class="space-y-4">
-                <input type="text" id="p_name" placeholder="案場名稱" class="w-full border p-3 rounded-xl">
+                <input type="text" id="p_name" placeholder="案場名稱" 
+                       class="w-full border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-200">
                 
                 <div class="grid grid-cols-2 gap-3">
-                    <select id="p_grid_type" class="border p-3 rounded-xl">
+                    <select id="p_grid_type" class="border p-3 rounded-xl bg-white">
                         <option value="spot_weld">⚡ 點銲網</option>
                         <option value="galvanized">🔩 鍍鋅鐵網</option>
                         <option value="stainless">✨ 不銹鋼網</option>
@@ -72,19 +83,22 @@
                     <input type="number" id="p_water" placeholder="預估用水(L)" step="0.1" class="border p-3 rounded-xl">
                 </div>
                 
-                <input type="number" id="p_acc" placeholder="配件重量(kg)" step="0.1" class="w-full border p-3 rounded-xl">
+                <input type="number" id="p_acc" placeholder="配件重量(kg)" step="0.1" 
+                       class="w-full border p-3 rounded-xl bg-gray-50 focus:bg-white">
                 
                 <button type="button" onclick="saveProject()" 
-                        class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold">
+                        class="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white py-4 rounded-xl font-bold shadow-lg">
                     建立案場
                 </button>
             </div>
+            <!-- 案場上傳結果 -->
+            <div id="project-result" class="mt-4 p-3 rounded-xl text-sm hidden"></div>
         </div>
 
         <!-- 顯示最近上傳的資料 -->
         <div class="bg-white p-6 rounded-3xl shadow-lg">
             <h3 class="font-bold text-lg mb-4">📋 最近上傳紀錄</h3>
-            <div id="recent-data" class="text-xs text-gray-500">
+            <div id="recent-data" class="text-sm text-gray-700">
                 載入中...
             </div>
         </div>
@@ -105,30 +119,45 @@
         // 載入最近資料
         async function loadRecent() {
             try {
-                const [farms, projects] = await Promise.all([
-                    fetch('/api/farms').then(r => r.json()),
-                    fetch('/api/projects').then(r => r.json())
+                const [farmsRes, projectsRes] = await Promise.all([
+                    fetch('/api/farms'),
+                    fetch('/api/projects')
                 ]);
                 
-                let html = '<div class="space-y-2">';
-                html += '<p class="font-bold">📦 最近農場: ' + (farms.length || 0) + ' 筆</p>';
-                farms.slice(0, 3).forEach(f => {
-                    html += `<div class="border-l-2 border-green-300 pl-2 py-1">
-                        ${f.batch_number} - ${f.plant_name} (${f.quantity}株)
-                    </div>`;
-                });
+                const farms = await farmsRes.json();
+                const projects = await projectsRes.json();
                 
-                html += '<p class="font-bold mt-3">🏗️ 最近案場: ' + (projects.length || 0) + ' 筆</p>';
-                projects.slice(0, 3).forEach(p => {
-                    html += `<div class="border-l-2 border-blue-300 pl-2 py-1">
-                        ${p.project_name}
-                    </div>`;
-                });
+                let html = '<div class="space-y-3">';
+                
+                html += '<p class="font-bold text-green-700">📦 最近農場資料</p>';
+                if (farms.length === 0) {
+                    html += '<p class="text-gray-400 text-xs">尚無資料</p>';
+                } else {
+                    farms.slice(0, 5).forEach(f => {
+                        html += `<div class="border-l-4 border-green-300 pl-3 py-2 bg-green-50/30 rounded">
+                            <div class="font-medium">${f.batch_number || '無批號'}</div>
+                            <div class="text-xs text-gray-600">${f.plant_name || '未填'} | ${f.quantity || 0}株</div>
+                            <div class="text-xs text-gray-400">${f.photo_url ? '📸 有照片' : '📸 無照片'}</div>
+                        </div>`;
+                    });
+                }
+                
+                html += '<p class="font-bold text-blue-700 mt-4">🏗️ 最近案場</p>';
+                if (projects.length === 0) {
+                    html += '<p class="text-gray-400 text-xs">尚無資料</p>';
+                } else {
+                    projects.slice(0, 5).forEach(p => {
+                        html += `<div class="border-l-4 border-blue-300 pl-3 py-2 bg-blue-50/30 rounded">
+                            <div class="font-medium">${p.project_name || '未命名'}</div>
+                            <div class="text-xs text-gray-600">ID: ${p.id?.substring(0,8) || 'N/A'}...</div>
+                        </div>`;
+                    });
+                }
+                
                 html += '</div>';
-                
                 document.getElementById('recent-data').innerHTML = html;
             } catch (e) {
-                document.getElementById('recent-data').innerHTML = '❌ 無法載入資料';
+                document.getElementById('recent-data').innerHTML = '❌ 無法載入資料：' + e.message;
             }
         }
 
@@ -136,11 +165,18 @@
         async function saveFarm() {
             const form = document.getElementById('farmForm');
             const formData = new FormData(form);
+            const resultDiv = document.getElementById('farm-result');
 
+            // 檢查批號
             if (!formData.get('batch_number')) {
                 alert('請填寫批號');
                 return;
             }
+
+            // 顯示上傳中
+            resultDiv.className = 'mt-4 p-3 rounded-xl text-sm bg-yellow-100 text-yellow-800';
+            resultDiv.innerHTML = '⏳ 上傳中...';
+            resultDiv.classList.remove('hidden');
 
             try {
                 const res = await fetch('/api/add_farm', {
@@ -151,14 +187,21 @@
                 const result = await res.json();
                 
                 if (res.ok) {
-                    alert('✅ 上傳成功');
+                    resultDiv.className = 'mt-4 p-3 rounded-xl text-sm bg-green-100 text-green-800';
+                    resultDiv.innerHTML = `
+                        ✅ 上傳成功<br>
+                        批號: ${formData.get('batch_number')}<br>
+                        ${result.photo_url ? '📸 照片已上傳' : '📸 無照片'}
+                    `;
                     form.reset();
                     loadRecent(); // 重新載入最近資料
                 } else {
-                    alert('❌ 錯誤：' + (result.error || '未知錯誤'));
+                    resultDiv.className = 'mt-4 p-3 rounded-xl text-sm bg-red-100 text-red-800';
+                    resultDiv.innerHTML = '❌ 錯誤：' + (result.error || '未知錯誤');
                 }
             } catch (e) {
-                alert('❌ 連線失敗：' + e.message);
+                resultDiv.className = 'mt-4 p-3 rounded-xl text-sm bg-red-100 text-red-800';
+                resultDiv.innerHTML = '❌ 連線失敗：' + e.message;
             }
         }
 
@@ -179,6 +222,13 @@
                 acc_weight: parseFloat(document.getElementById('p_acc').value) || 0
             };
 
+            const resultDiv = document.getElementById('project-result');
+
+            // 顯示上傳中
+            resultDiv.className = 'mt-4 p-3 rounded-xl text-sm bg-yellow-100 text-yellow-800';
+            resultDiv.innerHTML = '⏳ 建立中...';
+            resultDiv.classList.remove('hidden');
+
             try {
                 const res = await fetch('/api/add_project', {
                     method: 'POST',
@@ -189,7 +239,9 @@
                 const result = await res.json();
                 
                 if (res.ok) {
-                    alert('✅ 建立成功');
+                    resultDiv.className = 'mt-4 p-3 rounded-xl text-sm bg-green-100 text-green-800';
+                    resultDiv.innerHTML = '✅ 案場建立成功：' + payload.project_name;
+                    
                     // 清空表單
                     document.getElementById('p_name').value = '';
                     document.getElementById('p_grid_weight').value = '';
@@ -202,12 +254,15 @@
                     document.getElementById('p_drip_len').value = '';
                     document.getElementById('p_water').value = '';
                     document.getElementById('p_acc').value = '';
+                    
                     loadRecent(); // 重新載入最近資料
                 } else {
-                    alert('❌ 錯誤：' + (result.error || '未知錯誤'));
+                    resultDiv.className = 'mt-4 p-3 rounded-xl text-sm bg-red-100 text-red-800';
+                    resultDiv.innerHTML = '❌ 錯誤：' + (result.error || '未知錯誤');
                 }
             } catch (e) {
-                alert('❌ 連線失敗：' + e.message);
+                resultDiv.className = 'mt-4 p-3 rounded-xl text-sm bg-red-100 text-red-800';
+                resultDiv.innerHTML = '❌ 連線失敗：' + e.message;
             }
         }
 
