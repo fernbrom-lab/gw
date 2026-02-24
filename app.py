@@ -22,7 +22,11 @@ def safe_val(val, default=0):
         return float(val) if val is not None else default
     except:
         return default
-
+@app.route('/api/farms', methods=['GET'])
+def get_farms():
+    # 抓取最新的農場入庫數據
+    res = supabase.table("farms").select("*").order("created_at", desc=True).limit(4).execute()
+    return jsonify(res.data)
 @app.route('/')
 def index(): return send_from_directory('.', 'index.html')
 
