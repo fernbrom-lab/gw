@@ -3,58 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>蕨積 | 數據查核系統</title>
+    <title>蕨積 | 全生命週期數據平台</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-50 p-6">
-    <div class="max-w-md mx-auto bg-white rounded-xl shadow-md p-8">
-        <h1 class="text-2xl font-bold text-green-700 mb-6">蕨積：ESG 數據試算</h1>
-        
-        <div class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700">建置平方米 (㎡)</label>
-                <input type="number" id="area" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm border p-2" placeholder="例如: 50">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700">植栽總數量 (株)</label>
-                <input type="number" id="plants" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm border p-2" placeholder="例如: 1200">
-            </div>
-            <div class="flex items-center">
-                <input type="checkbox" id="reused" class="h-4 w-4 text-green-600 border-gray-300 rounded">
-                <label class="ml-2 block text-sm text-gray-900 font-bold">使用循環資材 (碳排優待)</label>
-            </div>
-            <button onclick="calculate()" class="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition">一鍵產出 ESG 報告預覽</button>
+<body class="bg-slate-50 p-4 md:p-10">
+    <div class="max-w-2xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="bg-green-700 p-6">
+            <h1 class="text-white text-2xl font-bold italic">蕨積 Green-Accumulate</h1>
+            <p class="text-green-100 text-sm">植生牆假設工程：全生命週期碳揭露系統</p>
         </div>
+        
+        <div class="p-8 space-y-6">
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">選擇建案 (從 Supabase 自動讀取)</label>
+                <select id="projectSelect" class="w-full border-2 border-gray-200 rounded-lg p-3 focus:border-green-500 outline-none transition">
+                    <option value="">-- 請選擇現有案場 --</option>
+                </select>
+            </div>
 
-        <hr class="my-6">
+            <button onclick="fetchData()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 shadow-lg transition">
+                啟動數據稽核
+            </button>
 
-        <div id="result" class="hidden space-y-2">
-            <h2 class="font-semibold text-lg">數據結果：</h2>
-            <p class="text-gray-600">預估碳排放：<span id="res-emission" class="text-red-500 font-bold"></span> kg</p>
-            <p class="text-gray-600">植物固碳量：<span id="res-sink" class="text-green-500 font-bold"></span> kg</p>
-            <div class="p-3 bg-gray-100 rounded text-sm">
-                <p>淨碳足跡：<span id="res-net" class="font-bold"></span> kg</p>
-                <p class="text-blue-600 mt-1">✓ 符合 ISO 14064-1 類別 4/5 預估</p>
+            <div id="resultCard" class="hidden border-t pt-6 animate-fade-in">
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-red-50 p-4 rounded-xl border border-red-100">
+                        <p class="text-xs text-red-600 font-bold">資材累計排碳</p>
+                        <p class="text-2xl font-black text-red-700"><span id="res-emission">0</span> <small>kg</small></p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-xl border border-green-100">
+                        <p class="text-xs text-green-600 font-bold">植物累積固碳</p>
+                        <p class="text-2xl font-black text-green-700"><span id="res-sink">0</span> <small>kg</small></p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 text-white p-6 rounded-xl relative overflow-hidden">
+                    <p class="text-sm opacity-70">淨碳足跡 (Net Impact)</p>
+                    <p class="text-4xl font-mono font-bold mt-2"><span id="res-net">0</span> kg</p>
+                    <div id="recycledTag" class="absolute top-4 right-4 bg-blue-500 text-[10px] px-2 py-1 rounded-full hidden">
+                        ✓ 已使用循環資材
+                    </div>
+                </div>
+                
+                <p id="verifier" class="text-center text-[10px] text-gray-400 mt-6 tracking-widest uppercase"></p>
             </div>
         </div>
     </div>
 
     <script>
-        function calculate() {
-            const area = document.getElementById('area').value;
-            const plants = document.getElementById('plants').value;
-            const reused = document.getElementById('reused').checked;
+        // 頁面載入時，自動抓取建案選單
+        window.onload = async () => {
+            const res = await fetch('/api/projects');
+            const projects = await res.json();
+            const select = document.getElementById('projectSelect');
+            projects.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.project_name;
+                select.appendChild(opt);
+            });
+        };
 
-            // 這裡模擬串接你的 Render API
-            // 係數鎖在後端環境變數，前端僅作展示
-            const coef = reused ? 0.5 : 2.5; 
-            const emission = area * 15 * coef;
-            const sink = plants * 0.05;
+        // 抓取特定案場的計算數據
+        async function fetchData() {
+            const id = document.getElementById('projectSelect').value;
+            if (!id) return alert('請先選擇建案');
 
-            document.getElementById('res-emission').innerText = emission.toFixed(1);
-            document.getElementById('res-sink').innerText = sink.toFixed(1);
-            document.getElementById('res-net').innerText = (emission - sink).toFixed(1);
-            document.getElementById('result').classList.remove('hidden');
+            const res = await fetch(`/api/calculate/${id}`);
+            const data = await res.json();
+
+            document.getElementById('res-emission').innerText = data.emission_kg;
+            document.getElementById('res-sink').innerText = data.sink_kg;
+            document.getElementById('res-net').innerText = data.net_impact;
+            document.getElementById('verifier').innerText = data.verifier;
+            
+            // 顯示循環標籤
+            const tag = document.getElementById('recycledTag');
+            data.is_recycled ? tag.classList.remove('hidden') : tag.classList.add('hidden');
+            
+            document.getElementById('resultCard').classList.remove('hidden');
         }
     </script>
 </body>
