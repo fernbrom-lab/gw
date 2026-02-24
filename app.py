@@ -3,6 +3,7 @@ import uuid
 from flask import Flask, request, jsonify, send_from_directory
 from supabase import create_client
 from flask_cors import CORS
+from datetime import datetime
 
 app = Flask(__name__, static_folder='.')
 CORS(app)  # 允許跨域請求
@@ -40,11 +41,11 @@ def get_projects():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 取得最近10筆農場資料
+# 取得最近50筆農場資料
 @app.route('/api/farms', methods=['GET'])
 def get_farms():
     try:
-        res = supabase.table("farms").select("*").order("created_at", desc=True).limit(10).execute()
+        res = supabase.table("farms").select("*").order("created_at", desc=True).limit(50).execute()
         return jsonify(res.data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -100,30 +101,45 @@ def add_farm():
         # 處理照片上傳
         photo_url = ""
         photo = request.files.get('photo')
-        if photo:
+        if photo and photo.filename:
             try:
-                file_name = f"farm_{uuid.uuid4()}.jpg"
+                # 生成唯一檔名
+                file_ext = photo.filename.split('.')[-1] if '.' in photo.filename else 'jpg'
+                file_name = f"farm_{uuid.uuid4()}.{file_ext}"
+                
+                # 讀取檔案內容
+                file_content = photo.read()
+                
                 # 上傳到 Supabase Storage
-                supabase.storage.from_('evidences').upload(file_name, photo.read())
+                supabase.storage.from_('evidences').upload(
+                    file_name, 
+                    file_content,
+                    {"content-type": photo.content_type}
+                )
+                
+                # 獲取公開 URL
                 photo_url = supabase.storage.from_('evidences').get_public_url(file_name)
+                print(f"照片上傳成功: {photo_url}")
+                
             except Exception as e:
-                print(f"照片上傳失敗: {e}")
+                print(f"照片上傳失敗: {str(e)}")
+                # 繼續執行，不要讓照片上傳失敗影響資料儲存
         
         # 準備資料
         farm_data = {
             "batch_number": batch_number,
             "plant_name": request.form.get('plant_name', ''),
-            "quantity": int(request.form.get('quantity', 0)),
-            "in_stock_date": request.form.get('in_date') or None,
-            "out_stock_date": request.form.get('out_date') or None,
+            "quantity": int(request.form.get('quantity', 0)) if request.form.get('quantity') else 0,
+            "in_stock_date": request.form.get('in_date') if request.form.get('in_date') else None,
+            "out_stock_date": request.form.get('out_date') if request.form.get('out_date') else None,
             "photo_url": photo_url
         }
         
-        print("插入 farms:", farm_data)  # 除錯用
+        print("插入 farms:", farm_data)
         
         # 插入資料庫
         result = supabase.table("farms").insert(farm_data).execute()
-        return jsonify({"status": "ok", "data": result.data})
+        return jsonify({"status": "ok", "data": result.data, "photo_url": photo_url})
         
     except Exception as e:
         print(f"錯誤: {str(e)}")
@@ -151,7 +167,7 @@ def add_project():
             "acc_weight": float(data.get('acc_weight', 0))
         }
         
-        print("插入 projects:", project_data)  # 除錯用
+        print("插入 projects:", project_data)
         
         # 插入資料庫
         result = supabase.table("projects").insert(project_data).execute()
