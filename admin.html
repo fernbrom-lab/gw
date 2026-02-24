@@ -60,89 +60,59 @@
             </div>
         </div>
     </div>
+<script>
+    const supabaseUrl = 'https://fvvbmedluaipqiqjiujj.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2dmJtZWRsdWFpcHFpcWppdWpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4Nzc4NzYsImV4cCI6MjA4NzQ1Mzg3Nn0.U22L6P5HoyoPtEuoU5fhk8C5JZ-4-3O4vkQPzJeD9Uw'; 
+    
+    // 初始化檢查
+    let supabase;
+    try {
+        supabase = supabasejs.createClient(supabaseUrl, supabaseKey);
+        console.log("✅ Supabase 客戶端已啟動");
+    } catch (e) {
+        console.error("❌ Supabase 初始化失敗:", e);
+    }
 
-    <script>
-        // 請更換為你的正確憑證
-        const supabaseUrl = 'https://fvvbmedluaipqiqjiujj.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2dmJtZWRsdWFpcHFpcWppdWpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4Nzc4NzYsImV4cCI6MjA4NzQ1Mzg3Nn0.U22L6P5HoyoPtEuoU5fhk8C5JZ-4-3O4vkQPzJeD9Uw';
-        const supabase = supabasejs.createClient(supabaseUrl, supabaseKey);
+    async function submitProject() {
+        console.log("🚀 按鈕已按下：開始建立案場"); // 如果沒印出這行，代表 HTML button 沒連到這個 function
+        const btn = document.getElementById('btn-project');
+        
+        try {
+            btn.innerText = "建立中...";
+            btn.disabled = true;
 
-        async function submitFarm() {
-            const btn = document.getElementById('btn-farm');
-            const file = document.getElementById('photo_file').files[0];
-            let photoUrl = "";
+            const payload = {
+                project_name: document.getElementById('p_name').value,
+                area_sqm: parseFloat(document.getElementById('p_area').value) || 0,
+                plant_total_count: parseInt(document.getElementById('p_plants').value) || 0,
+                is_recycled: document.getElementById('p_recycled').checked
+            };
+            console.log("📦 準備送出的資料:", payload);
 
-            try {
-                btn.innerText = "處理中...";
-                btn.disabled = true;
+            const res = await fetch('/api/add_project', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
 
-                if (file) {
-                    const fileName = `${Date.now()}_${file.name}`;
-                    const { data, error } = await supabase.storage.from('evidences').upload(fileName, file);
-                    if (error) throw error;
-                    const { data: pUrl } = supabase.storage.from('evidences').getPublicUrl(fileName);
-                    photoUrl = pUrl.publicUrl;
-                }
-
-                const payload = {
-                    batch_number: document.getElementById('batch_number').value,
-                    plant_name: document.getElementById('plant_name').value,
-                    quantity: parseInt(document.getElementById('farm_qty').value) || 0,
-                    in_stock_date: document.getElementById('in_date').value || null,
-                    out_stock_date: document.getElementById('out_date').value || null,
-                    photo_url: photoUrl
-                };
-
-                const res = await fetch('/api/add_farm', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                
-                if (!res.ok) throw new Error('API 傳送失敗');
-                alert('農場數據已成功錄入！');
-                location.reload();
-            } catch (err) {
-                alert('錯誤: ' + err.message);
-            } finally {
-                btn.innerText = "儲存農場數據";
-                btn.disabled = false;
+            console.log("📡 API 回傳狀態:", res.status);
+            
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'API 傳送失敗');
             }
+            
+            alert('建案建立成功！');
+            location.reload();
+        } catch (err) {
+            console.error("❌ 發生錯誤:", err);
+            alert('錯誤: ' + err.message);
+        } finally {
+            btn.innerText = "建立案場";
+            btn.disabled = false;
         }
-
-        async function submitProject() {
-            const btn = document.getElementById('btn-project');
-            try {
-                btn.innerText = "建立中...";
-                btn.disabled = true;
-
-                const payload = {
-                    project_name: document.getElementById('p_name').value,
-                    area_sqm: parseFloat(document.getElementById('p_area').value) || 0,
-                    plant_total_count: parseInt(document.getElementById('p_plants').value) || 0,
-                    is_recycled: document.getElementById('p_recycled').checked
-                };
-
-                const res = await fetch('/api/add_project', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-
-                if (!res.ok) throw new Error('API 傳送失敗');
-                alert('建案建立成功！');
-                location.reload();
-            } catch (err) {
-                alert('錯誤: ' + err.message);
-            } finally {
-                btn.innerText = "建立案場";
-                btn.disabled = false;
-            }
-        }
-
-        document.getElementById('photo_file').onchange = function() {
-            document.getElementById('upload-status').innerText = "已選取: " + this.files[0].name;
-        };
-    </script>
+    }
+</script>
+   
 </body>
 </html>
