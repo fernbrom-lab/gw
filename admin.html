@@ -1,68 +1,237 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-<head><meta charset="UTF-8"><script src="https://cdn.tailwindcss.com"></script></head>
-<body class="bg-slate-50 p-4 font-sans text-sm">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>碳排管理後台 · 農場/工程輸入</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        input, select, button { transition: all 0.15s ease; }
+        input:focus, select:focus { outline: 2px solid #3b82f6; outline-offset: 2px; }
+        input[type="file"]::file-selector-button {
+            background: #e2e8f0; border: none; padding: 0.5rem 1rem; border-radius: 0.75rem;
+            font-weight: 600; color: #1e293b; margin-right: 1rem; cursor: pointer;
+        }
+        input[type="file"]::file-selector-button:hover { background: #cbd5e1; }
+    </style>
+</head>
+<body class="bg-slate-50 p-4 font-sans text-sm antialiased">
     <div class="max-w-xl mx-auto space-y-6">
-        <div class="bg-white p-6 rounded-3xl shadow-lg">
-            <h2 class="text-xl font-bold text-green-700 mb-4 italic">🌿 植物入庫數據</h2>
+        <!-- 後台狀態提示 -->
+        <div class="bg-white/70 backdrop-blur-sm p-3 rounded-2xl shadow-sm flex items-center justify-between text-xs text-gray-500 border">
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                <span>後端連線: <span class="font-mono">Supabase + Flask</span></span>
+            </div>
+        </div>
+
+        <!-- 植物入庫區塊 (修正 name 屬性對應後端) -->
+        <div class="bg-white p-6 rounded-3xl shadow-lg border border-green-200">
+            <h2 class="text-xl font-bold text-green-700 mb-4 italic flex items-center gap-2">
+                <span>🌿</span> 植物入庫數據
+            </h2>
             <form id="farmForm" class="grid grid-cols-2 gap-3">
-                <input type="text" name="batch_number" placeholder="批號" class="col-span-2 border p-3 rounded-xl">
-                <input type="text" name="plant_name" placeholder="品種" class="border p-3 rounded-xl">
-                <input type="number" name="quantity" placeholder="數量" class="border p-3 rounded-xl">
-                <div class="space-y-1"><label class="text-[10px] ml-1 font-bold text-gray-400">進貨日</label><input type="date" name="in_date" class="w-full border p-2 rounded-xl"></div>
-                <div class="space-y-1"><label class="text-[10px] ml-1 font-bold text-gray-400">出貨日</label><input type="date" name="out_date" class="w-full border p-2 rounded-xl"></div>
-                <input type="file" name="photo" class="col-span-2 text-xs">
-                <button type="button" onclick="saveFarm()" class="col-span-2 bg-green-600 text-white py-3 rounded-xl font-bold">上傳農場數據</button>
+                <!-- 批號 - 對應後端的 batch_number -->
+                <input type="text" name="batch_number" placeholder="批號 * (例如 B2025-0321)" required
+                       class="col-span-2 border p-3 rounded-xl bg-white focus:bg-green-50/50">
+
+                <!-- 品種 - 對應後端的 plant_name -->
+                <input type="text" name="plant_name" placeholder="品種 (如 奶油白菜)" 
+                       class="border p-3 rounded-xl bg-white focus:bg-green-50/50">
+                
+                <!-- 數量 - 對應後端的 quantity -->
+                <input type="number" name="quantity" placeholder="數量 (株)" 
+                       class="border p-3 rounded-xl bg-white focus:bg-green-50/50">
+
+                <!-- 進貨日 - 對應後端的 in_date (後端會轉成 in_stock_date) -->
+                <div class="space-y-1">
+                    <label class="text-[10px] ml-1 font-bold text-gray-400">📅 進貨日</label>
+                    <input type="date" name="in_date" 
+                           class="w-full border p-2 rounded-xl bg-white focus:bg-green-50/50">
+                </div>
+                
+                <!-- 出貨日 - 對應後端的 out_date (後端會轉成 out_stock_date) -->
+                <div class="space-y-1">
+                    <label class="text-[10px] ml-1 font-bold text-gray-400">📆 出貨日</label>
+                    <input type="date" name="out_date" 
+                           class="w-full border p-2 rounded-xl bg-white focus:bg-green-50/50">
+                </div>
+
+                <!-- 照片上傳 - 對應後端的 photo -->
+                <input type="file" name="photo" accept="image/*" 
+                       class="col-span-2 text-xs border p-2 rounded-xl file:mr-3 file:bg-green-100 file:text-green-800 file:border-0 file:rounded-lg">
+
+                <!-- 上傳按鈕 -->
+                <button type="button" onclick="saveFarm()" 
+                        class="col-span-2 bg-green-600 hover:bg-green-700 active:scale-[0.98] text-white py-3 rounded-xl font-bold shadow-md">
+                    上傳農場數據
+                </button>
             </form>
         </div>
 
-        <div class="bg-white p-6 rounded-3xl shadow-lg">
-            <h2 class="text-xl font-bold text-blue-700 mb-4 italic">🏗️ 施工與物料登錄 (ISO Cat.4)</h2>
+        <!-- 施工與物料登錄區塊 (修正 id 對應後端) -->
+        <div class="bg-white p-6 rounded-3xl shadow-lg border border-blue-200">
+            <h2 class="text-xl font-bold text-blue-700 mb-4 italic flex items-center gap-2">
+                <span>🏗️</span> 施工與物料登錄
+                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">ISO Cat.4</span>
+            </h2>
+            
             <div class="space-y-4">
-                <input type="text" id="p_name" placeholder="案場名稱" class="w-full border p-3 rounded-xl bg-gray-50">
+                <!-- 案場名稱 - 對應 project_name -->
+                <input type="text" id="p_name" placeholder="案場名稱 (例如 陽光溫室D區)" 
+                       class="w-full border p-3 rounded-xl bg-gray-50 focus:bg-white">
+
+                <!-- 第一組：網種 / 結構重 / 柴油 / 汽油 -->
                 <div class="grid grid-cols-2 gap-3">
-                    <select id="p_grid_type" class="border p-3 rounded-xl"><option value="spot_weld">點銲網</option><option value="galvanized">鍍鋅鐵網</option><option value="stainless">不銹鋼網</option></select>
-                    <input type="number" id="p_grid_weight" placeholder="結構重(kg)" class="border p-3 rounded-xl">
-                    <input type="number" id="p_diesel" placeholder="柴油消耗(L)" class="border p-3 rounded-xl">
-                    <input type="number" id="p_gasoline" placeholder="汽油消耗(L)" class="border p-3 rounded-xl">
-                    <input type="number" id="p_days" placeholder="施工天數" class="border p-3 rounded-xl">
-                    <input type="number" id="p_pots" placeholder="花槽數量" class="border p-3 rounded-xl">
-                    <input type="number" id="p_layers" placeholder="滴灌層數" class="border p-3 rounded-xl">
-                    <input type="number" id="p_drip_len" placeholder="單層長度(m)" class="border p-3 rounded-xl">
+                    <select id="p_grid_type" class="border p-3 rounded-xl bg-white">
+                        <option value="spot_weld">⚡ 點銲網</option>
+                        <option value="galvanized">🔩 鍍鋅鐵網</option>
+                        <option value="stainless">✨ 不銹鋼網</option>
+                    </select>
+                    <input type="number" id="p_grid_weight" placeholder="結構重 (kg)" step="0.1" min="0"
+                           class="border p-3 rounded-xl bg-white">
+                    <input type="number" id="p_diesel" placeholder="柴油消耗 (L)" step="0.1" min="0"
+                           class="border p-3 rounded-xl bg-white">
+                    <input type="number" id="p_gasoline" placeholder="汽油消耗 (L)" step="0.1" min="0"
+                           class="border p-3 rounded-xl bg-white">
                 </div>
+
+                <!-- 第二組：施工天數 / 花槽數量 / 滴灌層數 / 單層長度 -->
                 <div class="grid grid-cols-2 gap-3">
-                    <input type="number" id="p_plants" placeholder="植物總量" class="border p-3 rounded-xl">
-                    <input type="number" id="p_water" placeholder="預估用水(L)" class="border p-3 rounded-xl">
+                    <input type="number" id="p_days" placeholder="施工天數" step="0.5" min="0"
+                           class="border p-3 rounded-xl bg-white">
+                    <input type="number" id="p_pots" placeholder="花槽數量" min="0"
+                           class="border p-3 rounded-xl bg-white">
+                    <input type="number" id="p_layers" placeholder="滴灌層數" min="0"
+                           class="border p-3 rounded-xl bg-white">
+                    <input type="number" id="p_drip_len" placeholder="單層長度 (m)" step="0.1" min="0"
+                           class="border p-3 rounded-xl bg-white">
                 </div>
-                <input type="number" id="p_acc" placeholder="其餘配件重量(kg)" class="w-full border p-3 rounded-xl bg-gray-50">
-                <button type="button" onclick="saveProject()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-black shadow-lg">建立案場</button>
+
+                <!-- 第三組：植物總量 / 預估用水 -->
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="number" id="p_plants" placeholder="植物總量 (株)" min="0"
+                           class="border p-3 rounded-xl bg-white">
+                    <input type="number" id="p_water" placeholder="預估用水 (L)" step="0.1" min="0"
+                           class="border p-3 rounded-xl bg-white">
+                </div>
+
+                <!-- 其餘配件重量 -->
+                <input type="number" id="p_acc" placeholder="其餘配件重量 (kg)" step="0.1" min="0"
+                       class="w-full border p-3 rounded-xl bg-gray-50 focus:bg-white">
+
+                <!-- 建立案場按鈕 -->
+                <button type="button" onclick="saveProject()" 
+                        class="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white py-4 rounded-xl font-black shadow-lg">
+                    建立案場
+                </button>
             </div>
         </div>
     </div>
+
     <script>
+        // ==================== 農場數據上傳 ====================
         async function saveFarm() {
-            const fd = new FormData(document.getElementById('farmForm'));
-            await fetch('/api/add_farm', { method: 'POST', body: fd });
-            alert("錄入成功"); location.reload();
+            const form = document.getElementById('farmForm');
+            const formData = new FormData(form);
+
+            // 檢查批號
+            const batch = formData.get('batch_number');
+            if (!batch || batch.trim() === '') {
+                alert('請填寫「批號」');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/add_farm', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert('✅ 植物入庫成功');
+                    form.reset();  // 清空表單
+                } else {
+                    alert('❌ 錯誤：' + (result.error || '未知錯誤'));
+                    console.error(result);
+                }
+            } catch (error) {
+                alert('❌ 連線失敗：' + error.message);
+                console.error(error);
+            }
         }
+
+        // ==================== 工程數據上傳 ====================
         async function saveProject() {
-            const data = {
-                project_name: document.getElementById('p_name').value || "未命名案場",
+            // 收集所有欄位資料 (使用與後端完全對應的欄位名稱)
+            const payload = {
+                project_name: document.getElementById('p_name').value.trim() || "未命名案場",
                 grid_type: document.getElementById('p_grid_type').value,
-                grid_weight: parseFloat(document.getElementById('p_grid_weight').value)||0,
-                diesel_liters: parseFloat(document.getElementById('p_diesel').value)||0,
-                gasoline_liters: parseFloat(document.getElementById('p_gasoline').value)||0,
-                est_days: parseFloat(document.getElementById('p_days').value)||0,
-                pot_count: parseInt(document.getElementById('p_pots').value)||0,
-                plant_total_count: parseInt(document.getElementById('p_plants').value)||0,
-                drip_layers: parseInt(document.getElementById('p_layers').value)||0,
-                drip_len: parseFloat(document.getElementById('p_drip_len').value)||0,
-                water_est: parseFloat(document.getElementById('p_water').value)||0,
-                acc_weight: parseFloat(document.getElementById('p_acc').value)||0
+                grid_weight: parseFloat(document.getElementById('p_grid_weight').value) || 0,
+                diesel_liters: parseFloat(document.getElementById('p_diesel').value) || 0,
+                gasoline_liters: parseFloat(document.getElementById('p_gasoline').value) || 0,
+                est_days: parseFloat(document.getElementById('p_days').value) || 0,
+                pot_count: parseInt(document.getElementById('p_pots').value) || 0,
+                plant_total_count: parseInt(document.getElementById('p_plants').value) || 0,
+                drip_layers: parseInt(document.getElementById('p_layers').value) || 0,
+                drip_len: parseFloat(document.getElementById('p_drip_len').value) || 0,
+                water_est: parseFloat(document.getElementById('p_water').value) || 0,
+                acc_weight: parseFloat(document.getElementById('p_acc').value) || 0
             };
-            await fetch('/api/add_project', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data)});
-            alert("案場建立成功"); location.reload();
+
+            // 檢查必要欄位
+            if (!payload.project_name || payload.project_name === "未命名案場") {
+                if (!confirm('案場名稱未填，將儲存為「未命名案場」，確定繼續？')) {
+                    return;
+                }
+            }
+
+            try {
+                const response = await fetch('/api/add_project', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert('✅ 案場建立成功');
+                    // 清空表單 (可選)
+                    document.getElementById('p_name').value = '';
+                    document.getElementById('p_grid_weight').value = '';
+                    document.getElementById('p_diesel').value = '';
+                    document.getElementById('p_gasoline').value = '';
+                    document.getElementById('p_days').value = '';
+                    document.getElementById('p_pots').value = '';
+                    document.getElementById('p_plants').value = '';
+                    document.getElementById('p_layers').value = '';
+                    document.getElementById('p_drip_len').value = '';
+                    document.getElementById('p_water').value = '';
+                    document.getElementById('p_acc').value = '';
+                } else {
+                    alert('❌ 錯誤：' + (result.error || '未知錯誤'));
+                    console.error(result);
+                }
+            } catch (error) {
+                alert('❌ 連線失敗：' + error.message);
+                console.error(error);
+            }
         }
+
+        // 測試連線
+        window.onload = async function() {
+            try {
+                const res = await fetch('/api/projects');
+                if (res.ok) {
+                    console.log('✅ 後端連線正常');
+                }
+            } catch (e) {
+                console.warn('⚠️ 後端連線測試失敗', e);
+            }
+        };
     </script>
 </body>
 </html>
