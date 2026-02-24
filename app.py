@@ -20,7 +20,33 @@ def safe_float(v):
 
 @app.route('/')
 def index(): return send_from_directory('.', 'index.html')
+@app.route('/api/add_farm', methods=['POST'])
+def add_farm():
+    try:
+        f, photo = request.form, request.files.get('photo')
+        p_url = ""
+        if photo:
+            f_name = f"farm_{uuid.uuid4()}.jpg"
+            # 確保 bucket 名稱為 'evidences'
+            supabase.storage.from_('evidences').upload(f_name, photo.read(), {"content-type": "image/jpeg"})
+            p_url = supabase.storage.from_('evidences').get_public_url(f_name)
 
+        data = {
+            "batch_number": f.get('batch_number'),
+            "plant_name": f.get('plant_name'),
+            "quantity": int(f.get('quantity', 0)) if f.get('quantity') else 0,
+            "in_stock_date": f.get('in_date') if f.get('in_date') else None,
+            "out_stock_date": f.get('out_date') if f.get('out_date') else None,
+            "photo_url": p_url
+        }
+        
+        # 執行插入並打印結果到 Log
+        res = supabase.table("farms").insert(data).execute()
+        print(f"INSERT SUCCESS: {res.data}")
+        return jsonify({"status": "ok", "data": res.data})
+    except Exception as e:
+        print(f"INSERT ERROR: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 @app.route('/admin')
 def admin(): return send_from_directory('.', 'admin.html')
 
