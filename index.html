@@ -1,99 +1,48 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>蕨積 | 全生命週期數據平台</title>
+    <meta charset="UTF-8"><title>蕨積 | 碳揭露系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-50 p-4 md:p-10">
-    <div class="max-w-2xl mx-auto bg-white rounded-2xl shadow-xl p-8 space-y-8">
-        <div class="border-b pb-4">
-            <h1 class="text-3xl font-black text-green-800 italic">蕨積 GREEN-ACCUMULATE</h1>
-            <p class="text-gray-400 text-xs tracking-widest uppercase">Carbon Disclosure System</p>
+<body class="bg-slate-50 p-6">
+    <div class="max-w-2xl mx-auto space-y-6">
+        <h1 class="text-3xl font-black italic text-green-800">GREEN-ACCUMULATE</h1>
+        
+        <div class="bg-white p-6 rounded-3xl shadow-lg space-y-4">
+            <select id="projSel" class="w-full border p-4 rounded-2xl bg-gray-50 font-bold outline-none"></select>
+            <button onclick="audit()" class="w-full bg-black text-white py-4 rounded-2xl font-bold shadow-xl">啟動數據稽核</button>
         </div>
 
-        <div class="space-y-3">
-            <label class="block text-sm font-bold text-gray-700">選擇稽核案場</label>
-            <select id="projectSelect" class="w-full border-2 border-gray-100 rounded-xl p-4 bg-gray-50 focus:border-green-500 outline-none transition-all">
-                <option value="">-- 請選擇現有案場 --</option>
-            </select>
-            <button onclick="fetchData()" class="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-green-700 transition-all shadow-lg">啟動數據稽核</button>
-        </div>
-
-        <div id="resultCard" class="hidden space-y-6">
-            <div class="grid grid-cols-2 gap-4">
-                <div class="bg-red-50 p-5 rounded-2xl border border-red-100">
-                    <p class="text-[10px] text-red-600 font-bold uppercase">Emission</p>
-                    <p class="text-3xl font-black text-red-700"><span id="res-emission">0</span> <small class="text-sm">kg</small></p>
-                </div>
-                <div class="bg-green-50 p-5 rounded-2xl border border-green-100">
-                    <p class="text-[10px] text-green-600 font-bold uppercase">Sequestration</p>
-                    <p class="text-3xl font-black text-green-700"><span id="res-sink">0</span> <small class="text-sm">kg</small></p>
-                </div>
+        <div id="res" class="hidden space-y-4">
+            <div class="grid grid-cols-3 gap-2 text-center">
+                <div class="bg-gray-100 p-3 rounded-2xl"><p class="text-[10px] text-gray-400">材料</p><p id="d-mat" class="font-bold">0</p></div>
+                <div class="bg-gray-100 p-3 rounded-2xl"><p class="text-[10px] text-gray-400">運輸</p><p id="d-trans" class="font-bold">0</p></div>
+                <div class="bg-gray-100 p-3 rounded-2xl"><p class="text-[10px] text-gray-400">施工</p><p id="d-site" class="font-bold">0</p></div>
             </div>
-
-            <div class="bg-white border-2 border-dashed border-gray-200 rounded-2xl p-5 flex items-center space-x-5">
-                <img id="res-farm-photo" src="" class="w-24 h-24 object-cover rounded-xl bg-gray-100">
-                <div class="text-sm">
-                    <p class="font-bold text-gray-900" id="res-plant-name">載入中...</p>
-                    <p class="text-gray-500 text-xs">批號：<span id="res-batch" class="font-mono">---</span></p>
-                    <div class="inline-block bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded font-bold mt-2">來源已驗證</div>
-                </div>
-            </div>
-
-            <div class="bg-slate-900 text-white p-6 rounded-3xl relative">
-                <p class="text-xs opacity-50 font-bold">NET CARBON FOOTPRINT</p>
-                <p class="text-5xl font-black mt-2"><span id="res-net">0</span> <small class="text-xl">kg</small></p>
-                <div id="recycledTag" class="absolute top-6 right-6 bg-blue-600 text-[10px] px-3 py-1 rounded-full font-bold hidden">CIRCULAR</div>
+            <div class="bg-slate-900 text-white p-8 rounded-[40px] relative overflow-hidden">
+                <p class="text-xs opacity-60 font-bold uppercase tracking-widest">Net Carbon Impact</p>
+                <p class="text-6xl font-black mt-2"><span id="net">0</span><small class="text-xl ml-2">kg</small></p>
+                <div class="mt-4 text-[10px] text-green-400 font-mono">Verified by ISO 14064-1 Protocol</div>
             </div>
         </div>
 
-        <div class="mt-10 border-t pt-8">
-            <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-6 text-center">Data Trust Protocol</h3>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                <div class="bg-gray-50 p-4 rounded-xl text-xs"><p class="font-bold">Compliance</p><p class="text-gray-500">ISO 14064-1</p></div>
-                <div class="bg-gray-50 p-4 rounded-xl text-xs"><p class="font-bold">Data Source</p><p id="trust-source" class="text-gray-500">---</p></div>
-                <div class="bg-gray-50 p-4 rounded-xl text-xs"><p class="font-bold">Unit</p><p class="text-gray-500">kg CO2e</p></div>
-            </div>
-            <div class="mt-6 p-4 bg-slate-50 rounded-2xl border border-gray-100 flex justify-around text-center">
-                <div><p class="text-[10px] text-gray-400">原生鋼鐵</p><p id="factor-new" class="text-sm font-bold">--</p></div>
-                <div><p class="text-[10px] text-gray-400">循環資材</p><p id="factor-reused" class="text-sm font-bold">--</p></div>
-                <div><p class="text-[10px] text-gray-400">月固碳率</p><p id="factor-sink" class="text-sm font-bold">--</p></div>
-            </div>
-        </div>
+        <div class="text-center py-10 border-t"><p id="trust" class="text-[10px] text-gray-400 font-bold uppercase tracking-widest"></p></div>
     </div>
-
     <script>
         window.onload = async () => {
-            const [pRes, protoRes] = await Promise.all([fetch('/api/projects'), fetch('/api/protocol')]);
-            const projects = await pRes.json();
-            const proto = await protoRes.json();
-            
-            const select = document.getElementById('projectSelect');
-            projects.forEach(p => { const opt = document.createElement('option'); opt.value = p.id; opt.textContent = p.project_name; select.appendChild(opt); });
-
-            document.getElementById('trust-source').innerText = proto.data_sources;
-            document.getElementById('factor-new').innerText = proto.factors.new_steel_factor;
-            document.getElementById('factor-reused').innerText = proto.factors.recycled_factor;
-            document.getElementById('factor-sink').innerText = proto.factors.avg_sink_rate;
+            const [p, t] = await Promise.all([fetch('/api/projects'), fetch('/api/protocol')]);
+            const projs = await p.json(); const proto = await t.json();
+            projs.forEach(x => { const o=document.createElement('option'); o.value=x.id; o.textContent=x.project_name; projSel.appendChild(o); });
+            document.getElementById('trust').innerText = `Compliance: ${proto.standard} | Data: ${proto.source}`;
         };
-
-        async function fetchData() {
-            const id = document.getElementById('projectSelect').value;
-            if (!id) return;
-            const res = await fetch(`/api/calculate/${id}`);
-            const data = await res.json();
-
-            document.getElementById('res-emission').innerText = data.emission_kg;
-            document.getElementById('res-sink').innerText = data.sink_kg;
-            document.getElementById('res-net').innerText = data.net_impact;
-            document.getElementById('res-plant-name').innerText = data.farm_info.plant_name;
-            document.getElementById('res-batch').innerText = data.farm_info.batch_number;
-            document.getElementById('res-farm-photo').src = data.farm_info.photo_url || "https://via.placeholder.com/150";
-            
-            data.is_recycled ? document.getElementById('recycledTag').classList.remove('hidden') : document.getElementById('recycledTag').classList.add('hidden');
-            document.getElementById('resultCard').classList.remove('hidden');
+        async function audit() {
+            const res = await fetch(`/api/calculate/${projSel.value}`);
+            const d = await res.json();
+            document.getElementById('d-mat').innerText = d.details.material + "kg";
+            document.getElementById('d-trans').innerText = d.details.transport + "kg";
+            document.getElementById('d-site').innerText = d.details.site + "kg";
+            document.getElementById('net').innerText = d.net_impact;
+            document.getElementById('res').classList.remove('hidden');
         }
     </script>
 </body>
