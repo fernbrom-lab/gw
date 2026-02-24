@@ -2,42 +2,50 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>蕨積 | 碳資產揭露</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>蕨積 | 碳稽核</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; -webkit-tap-highlight-color: transparent; }
+    </style>
 </head>
-<body class="bg-slate-50 p-4 md:p-8">
-    <div class="max-w-2xl mx-auto space-y-6">
-        <div class="bg-white p-6 rounded-[32px] shadow-xl border border-white">
-            <select id="projSel" class="w-full border-none p-4 rounded-2xl font-bold bg-slate-50 outline-none mb-4"></select>
-            <button onclick="audit()" class="w-full bg-green-600 text-white py-5 rounded-2xl font-black shadow-lg active:scale-95 transition-all">啟動數據稽核</button>
+<body class="bg-[#f8fafc] p-4 pb-20">
+    <div class="max-w-md mx-auto space-y-5">
+        <div class="pt-6 pb-2">
+            <h1 class="text-4xl font-[900] italic text-slate-900 tracking-tighter">蕨積 ACCUM</h1>
+            <p class="text-[11px] font-bold text-green-600 tracking-widest uppercase mt-1">ISO 14064-1 Audit Platform</p>
         </div>
 
-        <div id="res" class="hidden space-y-6">
-            <div class="bg-white p-6 rounded-[32px] shadow-xl flex flex-col md:flex-row items-center gap-6">
-                <div class="w-40 h-40"><canvas id="carbonChart"></canvas></div>
-                <div class="flex-1 grid grid-cols-3 gap-2 text-center">
-                    <div class="bg-slate-50 p-3 rounded-2xl"><p class="text-[10px] text-gray-400">材料</p><p id="d-mat" class="font-bold">0</p></div>
-                    <div class="bg-slate-50 p-3 rounded-2xl"><p class="text-[10px] text-gray-400">能源</p><p id="d-energy" class="font-bold text-blue-600">0</p></div>
-                    <div class="bg-slate-50 p-3 rounded-2xl"><p class="text-[10px] text-gray-400">施工</p><p id="d-site" class="font-bold text-green-600">0</p></div>
+        <div class="bg-white p-5 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-white">
+            <select id="projSel" class="w-full border-none p-4 rounded-2xl font-bold bg-slate-50 text-slate-800 outline-none mb-3 text-base appearance-none"></select>
+            <button onclick="audit()" class="w-full bg-slate-900 text-white py-5 rounded-2xl font-black text-lg active:scale-95 transition-all shadow-lg shadow-slate-300">執行數據稽核</button>
+        </div>
+
+        <div id="res" class="hidden space-y-5">
+            <div class="bg-white p-6 rounded-[2.5rem] shadow-lg border border-white flex items-center gap-6">
+                <div class="w-28 h-28"><canvas id="carbonChart"></canvas></div>
+                <div class="flex-1 space-y-3">
+                    <div><p class="text-[11px] font-bold text-slate-400">🏗️ 結構材料</p><p id="d-mat" class="text-lg font-black text-slate-800">0</p></div>
+                    <div><p class="text-[11px] font-bold text-slate-400">⛽ 運輸能源</p><p id="d-energy" class="text-lg font-black text-blue-600">0</p></div>
+                    <div><p class="text-[11px] font-bold text-slate-400">🛠️ 施工營運</p><p id="d-site" class="text-lg font-black text-green-600">0</p></div>
                 </div>
             </div>
 
-            <div class="bg-slate-900 text-white p-10 rounded-[40px] shadow-2xl relative overflow-hidden">
-                <p class="text-xs opacity-50 font-bold uppercase tracking-widest">Net Carbon Impact</p>
-                <div class="flex items-baseline mt-2">
-                    <p id="net" class="text-7xl font-black tracking-tighter">0</p>
-                    <span class="ml-2 text-xl font-bold opacity-40">kgCO2e</span>
+            <div class="bg-slate-900 text-white p-10 rounded-[3rem] shadow-2xl relative overflow-hidden">
+                <p class="text-[11px] opacity-40 font-bold uppercase tracking-[0.2em]">Net Carbon Impact</p>
+                <div class="flex items-baseline mt-1">
+                    <p id="net" class="text-7xl font-[900] tracking-tighter">0</p>
+                    <span class="ml-2 text-xl font-bold opacity-30 text-green-400">kgCO2e</span>
                 </div>
+                <div class="absolute -right-6 -bottom-6 w-32 h-32 bg-green-500/10 rounded-full blur-3xl"></div>
+            </div>
 
-                <div class="mt-10 pt-8 border-t border-white/10">
-                    <h3 class="text-sm font-bold text-green-400 mb-4 flex items-center gap-2">
-                        🌿 活體植物資產清單
-                    </h3>
-                    <div id="plant-gallery" class="grid grid-cols-2 gap-4">
-                        </div>
-                </div>
+            <div class="space-y-4">
+                <h3 class="text-xl font-black text-slate-800 pl-2">🌿 植物資產盤查</h3>
+                <div id="plant-gallery" class="grid grid-cols-2 gap-3 pb-10">
+                    </div>
             </div>
         </div>
     </div>
@@ -56,45 +64,41 @@
         async function audit() {
             const res = await fetch(`/api/calculate/${projSel.value}`);
             const d = await res.json();
-            
-            // 更新碳排數值
-            document.getElementById('d-mat').innerText = d.details.material + "kg";
-            document.getElementById('d-energy').innerText = d.details.energy + "kg";
-            document.getElementById('d-site').innerText = d.details.site + "kg";
+            document.getElementById('d-mat').innerText = d.details.material + " kg";
+            document.getElementById('d-energy').innerText = d.details.energy + " kg";
+            document.getElementById('d-site').innerText = d.details.site + " kg";
             document.getElementById('net').innerText = d.net_impact;
 
-            // 抓取農場照片數據 (我們新增一個 API 呼叫)
-            const farmRes = await fetch('/api/farms'); 
-            const farms = await farmRes.json();
+            // 渲染植物卡片
+            const fRes = await fetch('/api/farms');
+            const farms = await fRes.json();
             const gallery = document.getElementById('plant-gallery');
-            gallery.innerHTML = ''; // 清空舊內容
-
-            farms.forEach(f => {
-                gallery.innerHTML += `
-                    <div class="bg-white/5 rounded-2xl p-3 border border-white/10">
-                        <img src="${f.photo_url || 'https://via.placeholder.com/150'}" class="w-full h-24 object-cover rounded-xl mb-2">
-                        <div class="flex justify-between items-end">
-                            <span class="text-xs font-bold truncate">${f.plant_name}</span>
-                            <span class="text-[10px] text-green-400 font-mono">${f.quantity} 株</span>
-                        </div>
+            gallery.innerHTML = farms.map(f => `
+                <div class="bg-white p-3 rounded-3xl shadow-md border border-white">
+                    <img src="${f.photo_url || 'https://via.placeholder.com/200'}" class="w-full h-32 object-cover rounded-2xl mb-3 shadow-sm">
+                    <p class="text-[10px] font-bold text-slate-400">品種</p>
+                    <p class="text-sm font-black text-slate-800 truncate">${f.plant_name}</p>
+                    <div class="flex justify-between items-center mt-2 pt-2 border-t border-slate-50">
+                        <span class="text-[10px] font-bold text-green-600">數量</span>
+                        <span class="text-base font-black text-slate-900">${f.quantity}</span>
                     </div>
-                `;
-            });
+                </div>
+            `).join('');
 
-            // 圓餅圖初始化
+            // 圖表
             if (myChart) myChart.destroy();
             myChart = new Chart(document.getElementById('carbonChart'), {
                 type: 'doughnut',
                 data: {
                     datasets: [{
                         data: [d.details.material, d.details.energy, d.details.site],
-                        backgroundColor: ['#fff', '#3b82f6', '#22c55e'],
-                        borderWidth: 0
+                        backgroundColor: ['#1e293b', '#3b82f6', '#22c55e'],
+                        borderWidth: 0,
+                        hoverOffset: 0
                     }]
                 },
-                options: { cutout: '80%' }
+                options: { cutout: '80%', plugins: { legend: { display: false } } }
             });
-
             document.getElementById('res').classList.remove('hidden');
         }
     </script>
