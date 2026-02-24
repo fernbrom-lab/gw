@@ -15,6 +15,13 @@
         }
         /* 隱藏捲動條但保留功能 */
         ::-webkit-scrollbar { display: none; }
+        .gallery-img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 1.8rem;
+            background-color: #f8fafc;
+        }
     </style>
 </head>
 <body class="p-4 pb-12">
@@ -24,13 +31,20 @@
             <p class="text-[11px] font-bold text-slate-400 tracking-[0.3em] uppercase mt-1">ISO 14064-1 Audit System</p>
         </header>
 
+        <!-- 案場選擇區 -->
         <div class="bg-white p-5 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-white">
             <label class="text-[10px] font-black text-slate-400 ml-4 mb-2 block uppercase tracking-widest">Select Project</label>
-            <select id="projSel" class="w-full border-none p-4 rounded-2xl font-black bg-slate-50 text-slate-800 outline-none mb-4 text-lg appearance-none shadow-inner"></select>
-            <button onclick="audit()" class="w-full bg-slate-900 text-white py-5 rounded-2xl font-[900] text-xl active:scale-95 transition-all shadow-lg shadow-slate-300">執行數據稽核</button>
+            <select id="projSel" class="w-full border-none p-4 rounded-2xl font-black bg-slate-50 text-slate-800 outline-none mb-4 text-lg appearance-none shadow-inner">
+                <option value="">載入中...</option>
+            </select>
+            <button onclick="audit()" class="w-full bg-slate-900 text-white py-5 rounded-2xl font-[900] text-xl active:scale-95 transition-all shadow-lg shadow-slate-300">
+                執行數據稽核
+            </button>
         </div>
 
+        <!-- 稽核結果顯示區 -->
         <div id="res" class="hidden space-y-6">
+            <!-- 碳排卡片 -->
             <div class="bg-slate-900 text-white p-10 rounded-[3.5rem] shadow-2xl relative overflow-hidden">
                 <p class="text-[11px] opacity-40 font-bold uppercase tracking-[0.2em]">Net Carbon Impact</p>
                 <div class="flex items-baseline mt-1">
@@ -55,6 +69,7 @@
                 <div class="absolute -right-10 -top-10 w-40 h-40 bg-green-500/10 rounded-full blur-3xl"></div>
             </div>
 
+            <!-- 植物資產盤查 -->
             <div class="space-y-4 pt-2">
                 <div class="flex justify-between items-end px-4">
                     <h3 class="text-2xl font-[900] text-slate-800 italic">🌿 植物資產盤查</h3>
@@ -62,7 +77,8 @@
                 </div>
                 
                 <div id="plant-gallery" class="grid grid-cols-2 gap-4 pb-10">
-                    </div>
+                    <!-- 照片會動態載入 -->
+                </div>
             </div>
         </div>
     </div>
@@ -70,64 +86,116 @@
     <script>
         // 初始化案場清單
         window.onload = async () => {
+            await loadProjects();
+            await loadFarms(); // 預先載入所有農場資料
+        };
+
+        async function loadProjects() {
             try {
                 const res = await fetch('/api/projects');
                 const projs = await res.json();
-                projs.forEach(x => {
-                    const o = document.createElement('option');
-                    o.value = x.id;
-                    o.textContent = x.project_name;
-                    projSel.appendChild(o);
-                });
-            } catch (e) { console.error("無法載入案場"); }
-        };
+                const sel = document.getElementById('projSel');
+                sel.innerHTML = '';
+                
+                if (projs.length === 0) {
+                    sel.innerHTML = '<option value="">尚無案場資料</option>';
+                } else {
+                    projs.forEach(x => {
+                        const o = document.createElement('option');
+                        o.value = x.id;
+                        o.textContent = x.project_name;
+                        sel.appendChild(o);
+                    });
+                }
+            } catch (e) { 
+                console.error("無法載入案場", e);
+                document.getElementById('projSel').innerHTML = '<option value="">載入失敗</option>';
+            }
+        }
+
+        async function loadFarms() {
+            try {
+                const res = await fetch('/api/farms');
+                const farms = await res.json();
+                renderFarms(farms);
+            } catch (e) {
+                console.error("無法載入農場資料", e);
+            }
+        }
+
+        function renderFarms(farms) {
+            const gallery = document.getElementById('plant-gallery');
+            document.getElementById('p-count').innerText = farms.length + " ITEMS";
+            
+            if (farms.length === 0) {
+                gallery.innerHTML = '<p class="col-span-2 text-center py-10 text-slate-400 font-bold">目前尚無植物照片數據</p>';
+                return;
+            }
+
+            gallery.innerHTML = farms.map(f => {
+                // 處理圖片 URL
+                let imgUrl = f.photo_url;
+                if (!imgUrl || imgUrl === '') {
+                    imgUrl = 'https://via.placeholder.com/400x300?text=無照片';
+                }
+
+                return `
+                <div class="bg-white rounded-[2.5rem] p-4 shadow-xl shadow-slate-200/60 border border-white">
+                    <div class="relative w-full h-32 mb-3">
+                        <img src="${imgUrl}" 
+                             class="gallery-img"
+                             onerror="this.src='https://via.placeholder.com/400x300?text=圖片錯誤'"
+                             alt="${f.plant_name || '植物照片'}">
+                    </div>
+                    <div class="px-1">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-tighter">品種 Species</p>
+                        <p class="text-base font-[900] text-slate-800 truncate">${f.plant_name || '未註記'}</p>
+                        
+                        <div class="mt-3 pt-3 border-t border-slate-50 flex justify-between items-center">
+                            <span class="text-[10px] font-black text-green-600">批號</span>
+                            <span class="text-sm font-[900] text-slate-900">${f.batch_number || 'N/A'}</span>
+                        </div>
+                        <div class="flex justify-between items-center mt-1">
+                            <span class="text-[10px] font-black text-green-600">數量</span>
+                            <span class="text-lg font-[900] text-slate-900">${f.quantity || 0}</span>
+                        </div>
+                    </div>
+                </div>
+            `}).join('');
+        }
 
         async function audit() {
+            const projId = document.getElementById('projSel').value;
+            if (!projId) {
+                alert('請選擇案場');
+                return;
+            }
+
             try {
                 // 同時抓取計算數據與農場照片
                 const [cRes, fRes] = await Promise.all([
-                    fetch(`/api/calculate/${projSel.value}`),
+                    fetch(`/api/calculate/${projId}`),
                     fetch('/api/farms')
                 ]);
+                
+                if (!cRes.ok) {
+                    throw new Error('計算數據載入失敗');
+                }
                 
                 const d = await cRes.json();
                 const farms = await fRes.json();
 
-                // 1. 更新黑色卡片數據
-                document.getElementById('net').innerText = d.net_impact;
-                document.getElementById('d-mat').innerText = d.details.material + "kg";
-                document.getElementById('d-energy').innerText = d.details.energy + "kg";
-                document.getElementById('d-site').innerText = d.details.site + "kg";
+                // 更新黑色卡片數據
+                document.getElementById('net').innerText = d.net_impact || 0;
+                document.getElementById('d-mat').innerText = (d.details?.material || 0) + "kg";
+                document.getElementById('d-energy').innerText = (d.details?.energy || 0) + "kg";
+                document.getElementById('d-site').innerText = (d.details?.site || 0) + "kg";
                 
-                // 2. 渲染獨立植物照片區
-                document.getElementById('p-count').innerText = farms.length + " ITEMS";
-                const gallery = document.getElementById('plant-gallery');
-                
-                if (farms.length === 0) {
-                    gallery.innerHTML = '<p class="col-span-2 text-center py-10 text-slate-400 font-bold">目前尚無植物照片數據</p>';
-                } else {
-                    gallery.innerHTML = farms.map(f => `
-                        <div class="bg-white rounded-[2.5rem] p-4 shadow-xl shadow-slate-200/60 border border-white">
-                            <div class="relative w-full h-32 mb-3">
-                                <img src="${f.photo_url || 'https://via.placeholder.com/200'}" 
-                                     class="w-full h-full object-cover rounded-[1.8rem] shadow-inner">
-                            </div>
-                            <div class="px-1">
-                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-tighter">品種 Species</p>
-                                <p class="text-base font-[900] text-slate-800 truncate">${f.plant_name || '未註記'}</p>
-                                
-                                <div class="mt-3 pt-3 border-t border-slate-50 flex justify-between items-center">
-                                    <span class="text-[10px] font-black text-green-600">QTY</span>
-                                    <span class="text-lg font-[900] text-slate-900">${f.quantity}</span>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('');
-                }
+                // 更新植物照片區
+                renderFarms(farms);
 
                 // 顯示結果區域
                 document.getElementById('res').classList.remove('hidden');
-                // 平滑捲動到結果區
                 window.scrollTo({ top: 300, behavior: 'smooth' });
 
             } catch (e) {
