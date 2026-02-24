@@ -3,57 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>蕨積 | 數據登錄</title>
+    <title>蕨積 | 管理後台</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 p-6">
-    <div class="max-w-xl mx-auto space-y-8">
-        <div class="bg-white p-6 rounded-3xl shadow-lg">
-            <h2 class="text-xl font-bold text-green-700 mb-4">🌿 農場入庫</h2>
+<body class="bg-slate-100 p-4 font-sans">
+    <div class="max-w-xl mx-auto space-y-6">
+        <h1 class="text-3xl font-black text-slate-800">蕨積 ADMIN</h1>
+
+        <div class="bg-white p-6 rounded-3xl shadow-xl">
+            <h2 class="text-xl font-bold text-green-700 mb-4 italic">🌿 植物入庫數據</h2>
             <form id="farmForm" class="grid grid-cols-2 gap-4">
-                <input type="text" name="batch_number" placeholder="批號" class="col-span-2 border p-3 rounded-xl">
-                <input type="text" name="plant_name" placeholder="品種" class="border p-3 rounded-xl">
-                <input type="number" name="quantity" placeholder="數量" class="border p-3 rounded-xl">
-                <input type="file" name="photo" id="photo" class="col-span-2 border p-2 text-xs">
-                <button type="button" onclick="saveFarm()" class="col-span-2 bg-green-600 text-white py-3 rounded-xl font-bold">上傳數據</button>
+                <input type="text" name="batch_number" placeholder="進貨批號" class="col-span-2 border p-3 rounded-xl bg-gray-50">
+                <input type="text" name="plant_name" placeholder="植物品種" class="border p-3 rounded-xl bg-gray-50">
+                <input type="number" name="quantity" placeholder="入庫數量" class="border p-3 rounded-xl bg-gray-50">
+                <div class="col-span-2 border-2 border-dashed p-4 rounded-xl text-center">
+                    <input type="file" name="photo" id="photo" class="text-xs">
+                </div>
+                <button type="button" onclick="saveFarm()" class="col-span-2 bg-green-600 text-white font-bold py-3 rounded-xl">上傳農場數據</button>
             </form>
         </div>
-        <div class="bg-white p-6 rounded-3xl shadow-lg">
-            <h2 class="text-xl font-bold text-blue-700 mb-4">🏗️ 案場建置 (ISO Cat.4)</h2>
+
+        <div class="bg-white p-6 rounded-3xl shadow-xl">
+            <h2 class="text-xl font-bold text-blue-700 mb-4 italic">🏗️ 案場詳細登錄 (ISO Cat.4)</h2>
             <div class="space-y-4 text-sm">
-                <input type="text" id="p_name" placeholder="案場名稱" class="w-full border p-3 rounded-xl">
-                <div class="grid grid-cols-2 gap-4">
-                    <select id="p_grid_type" class="border p-3 rounded-xl"><option value="spot_weld">點銲網</option><option value="galvanized">鍍鋅鐵網</option><option value="stainless">不銹鋼網</option></select>
-                    <input type="number" id="p_grid_weight" placeholder="結構重量(kg)" class="border p-3 rounded-xl">
+                <input type="text" id="p_name" placeholder="案場名稱" class="w-full border p-3 rounded-xl bg-gray-50">
+                
+                <p class="text-[10px] font-bold text-gray-400 uppercase">1. 結構資材</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <select id="p_grid_type" class="border p-3 rounded-xl">
+                        <option value="spot_weld">點銲網</option>
+                        <option value="galvanized">鍍鋅鐵網</option>
+                        <option value="stainless">不銹鋼網</option>
+                    </select>
+                    <input type="number" id="p_grid_weight" placeholder="網材重量(kg)" class="border p-3 rounded-xl">
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+
+                <p class="text-[10px] font-bold text-gray-400 uppercase">2. 滴灌與容器</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="number" id="p_drip_layers" placeholder="滴灌層數" class="border p-3 rounded-xl">
+                    <input type="number" id="p_drip_len" placeholder="單層長度(m)" class="border p-3 rounded-xl">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
                     <input type="number" id="p_pot_count" placeholder="花槽數量" class="border p-3 rounded-xl">
-                    <input type="number" id="p_plants" placeholder="植物數量" class="border p-3 rounded-xl">
+                    <input type="number" id="p_plants" placeholder="植物總量" class="border p-3 rounded-xl">
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <select id="p_vehicle_type" class="border p-3 rounded-xl"><option value="diesel">柴油車</option><option value="gasoline">汽油車</option></select>
+
+                <p class="text-[10px] font-bold text-gray-400 uppercase">3. 運輸與施工</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <select id="p_vehicle_type" class="border p-3 rounded-xl">
+                        <option value="diesel">柴油工班車</option>
+                        <option value="gasoline">汽油工班車</option>
+                    </select>
                     <input type="number" id="p_vehicle_count" placeholder="出車部數" class="border p-3 rounded-xl">
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <input type="number" id="p_man_day" placeholder="施工(人天)" class="border p-3 rounded-xl">
-                    <input type="number" id="p_water_est" placeholder="用水量(L)" class="border p-3 rounded-xl">
-                    <input type="number" id="p_acc_weight" placeholder="配件重量(kg)" class="col-span-2 border p-3 rounded-xl">
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="number" id="p_man_day" placeholder="施工人天" class="border p-3 rounded-xl">
+                    <input type="number" id="p_water_est" placeholder="預估用水(L)" class="border p-3 rounded-xl">
                 </div>
-                <button type="button" onclick="saveProject()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold">建立案場</button>
+                <input type="number" id="p_acc_weight" placeholder="其他配件重量(kg)" class="w-full border p-3 rounded-xl">
+
+                <button type="button" onclick="saveProject()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg">建立 ISO 稽核案場</button>
             </div>
         </div>
     </div>
+
     <script>
         async function saveFarm() {
-            const formData = new FormData(document.getElementById('farmForm'));
-            await fetch('/api/add_farm', { method: 'POST', body: formData });
-            alert("錄入成功"); location.reload();
+            const fd = new FormData(document.getElementById('farmForm'));
+            await fetch('/api/add_farm', { method: 'POST', body: fd });
+            alert("農場數據錄入成功"); location.reload();
         }
+
         async function saveProject() {
             const data = {
                 project_name: document.getElementById('p_name').value,
                 grid_type: document.getElementById('p_grid_type').value,
                 grid_weight: parseFloat(document.getElementById('p_grid_weight').value)||0,
+                drip_layers: parseInt(document.getElementById('p_drip_layers').value)||0,
+                drip_len: parseFloat(document.getElementById('p_drip_len').value)||0,
                 pot_count: parseInt(document.getElementById('p_pot_count').value)||0,
                 plant_total_count: parseInt(document.getElementById('p_plants').value)||0,
                 vehicle_type: document.getElementById('p_vehicle_type').value,
@@ -62,8 +89,12 @@
                 water_est: parseFloat(document.getElementById('p_water_est').value)||0,
                 acc_weight: parseFloat(document.getElementById('p_acc_weight').value)||0
             };
-            await fetch('/api/add_project', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data)});
-            alert("案場建立成功"); location.reload();
+            await fetch('/api/add_project', { 
+                method: 'POST', 
+                headers: {'Content-Type':'application/json'}, 
+                body: JSON.stringify(data) 
+            });
+            alert("案場建立成功！"); location.reload();
         }
     </script>
 </body>
