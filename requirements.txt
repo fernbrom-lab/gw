@@ -2,3 +2,4 @@ flask
 supabase
 python-dotenv
 gunicorn
+flask_cors==5.0.0
