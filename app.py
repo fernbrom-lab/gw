@@ -1,8 +1,11 @@
-import os, uuid
+import os
+import uuid
 from flask import Flask, request, jsonify, send_from_directory
 from supabase import create_client
+from flask_cors import CORS
 
 app = Flask(__name__, static_folder='.')
+CORS(app)  # 允許跨域請求
 
 # 初始化 Supabase
 url = os.getenv("SUPABASE_URL")
@@ -21,44 +24,63 @@ def safe_float(v):
     except: return 0.0
 
 @app.route('/')
-def index(): return send_from_directory('.', 'index.html')
+def index(): 
+    return send_from_directory('.', 'index.html')
 
 @app.route('/admin')
-def admin(): return send_from_directory('.', 'admin.html')
+def admin(): 
+    return send_from_directory('.', 'admin.html')
 
+# 取得所有案場
 @app.route('/api/projects', methods=['GET'])
 def get_projects():
-    res = supabase.table("projects").select("id, project_name").execute()
-    return jsonify(res.data)
+    try:
+        res = supabase.table("projects").select("id, project_name").execute()
+        return jsonify(res.data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
+# 取得最近10筆農場資料
 @app.route('/api/farms', methods=['GET'])
 def get_farms():
-    res = supabase.table("farms").select("*").order("created_at", desc=True).limit(10).execute()
-    return jsonify(res.data)
+    try:
+        res = supabase.table("farms").select("*").order("created_at", desc=True).limit(10).execute()
+        return jsonify(res.data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
+# 計算碳排
 @app.route('/api/calculate/<project_id>', methods=['GET'])
 def calculate(project_id):
     try:
         p = supabase.table("projects").select("*").eq("id", project_id).single().execute().data
-        if not p: return jsonify({"error": "No data"}), 404
+        if not p: 
+            return jsonify({"error": "找不到案場"}), 404
         
         # 碳排計算邏輯
         drip_e = safe_float(p.get('drip_layers')) * safe_float(p.get('drip_len')) * FACTORS["drip_pipe"]
-        mat_e = (safe_float(p.get('grid_weight')) * FACTORS["grid"].get(p.get('grid_type'), 2.5)) + \
+        
+        grid_factor = FACTORS["grid"].get(p.get('grid_type'), 2.5)
+        mat_e = (safe_float(p.get('grid_weight')) * grid_factor) + \
                 (safe_float(p.get('pot_count')) * FACTORS["pot"]) + \
                 (safe_float(p.get('acc_weight')) * FACTORS["acc"]) + drip_e
         
         energy_e = (safe_float(p.get('diesel_liters')) * FACTORS["fuel"]["diesel"]) + \
                    (safe_float(p.get('gasoline_liters')) * FACTORS["fuel"]["gasoline"])
         
-        site_e = (safe_float(p.get('est_days')) * FACTORS["man_day"]) + (safe_float(p.get('water_est')) * FACTORS["water"])
+        site_e = (safe_float(p.get('est_days')) * FACTORS["man_day"]) + \
+                 (safe_float(p.get('water_est')) * FACTORS["water"])
         
         total_e = mat_e + energy_e + site_e
         total_s = safe_float(p.get('plant_total_count')) * 0.05 * 12
 
         return jsonify({
             "project_name": p.get('project_name'),
-            "details": {"material": round(mat_e, 1), "energy": round(energy_e, 1), "site": round(site_e, 1)},
+            "details": {
+                "material": round(mat_e, 1), 
+                "energy": round(energy_e, 1), 
+                "site": round(site_e, 1)
+            },
             "emission_kg": round(total_e, 1),
             "sink_kg": round(total_s, 1),
             "net_impact": round(total_e - total_s, 1)
@@ -66,37 +88,83 @@ def calculate(project_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# 新增農場資料
 @app.route('/api/add_farm', methods=['POST'])
 def add_farm():
     try:
-        f, photo = request.form, request.files.get('photo')
-        p_url = ""
-        if photo:
-            f_name = f"farm_{uuid.uuid4()}.jpg"
-            supabase.storage.from_('evidences').upload(f_name, photo.read(), {"content-type": "image/jpeg"})
-            p_url = supabase.storage.from_('evidences').get_public_url(f_name)
+        # 取得表單資料
+        batch_number = request.form.get('batch_number')
+        if not batch_number:
+            return jsonify({"error": "批號為必填"}), 400
         
-        # 修正：確保空日期不會導致 SQL 錯誤
-        supabase.table("farms").insert({
-            "batch_number": f.get('batch_number'),
-            "plant_name": f.get('plant_name'),
-            "quantity": int(f.get('quantity', 0)) if f.get('quantity') else 0,
-            "in_stock_date": f.get('in_date') if f.get('in_date') else None,
-            "out_stock_date": f.get('out_date') if f.get('out_date') else None,
-            "photo_url": p_url
-        }).execute()
-        return jsonify({"status": "ok"})
+        # 處理照片上傳
+        photo_url = ""
+        photo = request.files.get('photo')
+        if photo:
+            try:
+                file_name = f"farm_{uuid.uuid4()}.jpg"
+                # 上傳到 Supabase Storage
+                supabase.storage.from_('evidences').upload(file_name, photo.read())
+                photo_url = supabase.storage.from_('evidences').get_public_url(file_name)
+            except Exception as e:
+                print(f"照片上傳失敗: {e}")
+        
+        # 準備資料
+        farm_data = {
+            "batch_number": batch_number,
+            "plant_name": request.form.get('plant_name', ''),
+            "quantity": int(request.form.get('quantity', 0)),
+            "in_stock_date": request.form.get('in_date') or None,
+            "out_stock_date": request.form.get('out_date') or None,
+            "photo_url": photo_url
+        }
+        
+        print("插入 farms:", farm_data)  # 除錯用
+        
+        # 插入資料庫
+        result = supabase.table("farms").insert(farm_data).execute()
+        return jsonify({"status": "ok", "data": result.data})
+        
     except Exception as e:
-        print(f"DEBUG: {str(e)}")
+        print(f"錯誤: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+# 新增案場資料
 @app.route('/api/add_project', methods=['POST'])
 def add_project():
     try:
-        supabase.table("projects").insert(request.json).execute()
-        return jsonify({"status": "ok"})
+        data = request.json
+        
+        # 準備案場資料
+        project_data = {
+            "project_name": data.get('project_name', '未命名案場'),
+            "grid_type": data.get('grid_type', 'spot_weld'),
+            "grid_weight": float(data.get('grid_weight', 0)),
+            "diesel_liters": float(data.get('diesel_liters', 0)),
+            "gasoline_liters": float(data.get('gasoline_liters', 0)),
+            "est_days": float(data.get('est_days', 0)),
+            "pot_count": int(data.get('pot_count', 0)),
+            "plant_total_count": int(data.get('plant_total_count', 0)),
+            "drip_layers": int(data.get('drip_layers', 0)),
+            "drip_len": float(data.get('drip_len', 0)),
+            "water_est": float(data.get('water_est', 0)),
+            "acc_weight": float(data.get('acc_weight', 0))
+        }
+        
+        print("插入 projects:", project_data)  # 除錯用
+        
+        # 插入資料庫
+        result = supabase.table("projects").insert(project_data).execute()
+        return jsonify({"status": "ok", "data": result.data})
+        
     except Exception as e:
+        print(f"錯誤: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+# 測試連線
+@app.route('/api/test', methods=['GET'])
+def test():
+    return jsonify({"status": "ok", "message": "伺服器正常運作"})
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+    app.run(host='0.0.0.0', port=10000, debug=True)
