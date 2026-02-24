@@ -1,73 +1,79 @@
-import os
-import uuid
+import os, uuid
 from flask import Flask, request, jsonify, send_from_directory
 from supabase import create_client
 
 app = Flask(__name__, static_folder='.')
 
-# 初始化 Supabase (金鑰只存在伺服器端)
+# 初始化 Supabase (請於 Render 設定環境變數)
 url = os.getenv("SUPABASE_URL")
 key = os.getenv("SUPABASE_KEY")
 supabase = create_client(url, key)
 
+# ISO 參考係數 (kgCO2e/單位)
+FACTORS = {
+    "grid": {"spot_weld": 2.4, "galvanized": 2.8, "stainless": 6.8},
+    "vehicle": {"diesel": 2.73, "gasoline": 2.31},
+    "pot": 1.2, "water": 0.00016, "man_day": 0.5
+}
+
 @app.route('/')
-def index():
-    return send_from_directory('.', 'index.html')
+def index(): return send_from_directory('.', 'index.html')
 
 @app.route('/admin')
-def admin():
-    return send_from_directory('.', 'admin.html')
+def admin(): return send_from_directory('.', 'admin.html')
 
-# 1. 核心計算與揭露 API (略，維持原樣)
-# ... [保留原本的 /api/projects, /api/calculate, /api/protocol] ...
+@app.route('/api/projects', methods=['GET'])
+def get_projects():
+    res = supabase.table("projects").select("id, project_name").execute()
+    return jsonify(res.data)
 
-# 2. 新增：農場數據登錄 (含圖片處理)
+@app.route('/api/calculate/<project_id>', methods=['GET'])
+def calculate(project_id):
+    p = supabase.table("projects").select("*").eq("id", project_id).single().execute().data
+    
+    # 分項計算
+    mat_e = (p.get('grid_weight',0) * FACTORS["grid"].get(p.get('grid_type'), 2.5)) + \
+            (p.get('pot_count',0) * FACTORS["pot"]) + (p.get('acc_weight',0) * 2.5)
+    trans_e = p.get('vehicle_count',0) * FACTORS["vehicle"].get(p.get('vehicle_type'), 2.3)
+    const_e = (p.get('man_day',0) * FACTORS["man_day"]) + (p.get('water_est',0) * FACTORS["water"])
+    
+    total_e = mat_e + trans_e + const_e
+    total_s = p.get('plant_total_count',0) * 0.05 * 12 # 預估固碳
+
+    return jsonify({
+        "project_name": p['project_name'],
+        "details": {"material": round(mat_e,2), "transport": round(trans_e,2), "site": round(const_e,2)},
+        "emission_kg": round(total_e, 2),
+        "sink_kg": round(total_s, 2),
+        "net_impact": round(total_e - total_s, 2),
+        "iso": "ISO 14064-1 Cat.4"
+    })
+
 @app.route('/api/add_farm', methods=['POST'])
 def add_farm():
-    try:
-        # 接收 Form Data (包含檔案與文字)
-        batch = request.form.get('batch_number')
-        plant = request.form.get('plant_name')
-        qty = request.form.get('quantity')
-        in_date = request.form.get('in_stock_date')
-        out_date = request.form.get('out_stock_date')
-        file = request.files.get('photo')
+    f = request.form
+    photo = request.files.get('photo')
+    p_url = ""
+    if photo:
+        f_name = f"{uuid.uuid4()}.jpg"
+        supabase.storage.from_('evidences').upload(f_name, photo.read(), {"content-type": "image/jpeg"})
+        p_url = supabase.storage.from_('evidences').get_public_url(f_name)
+    
+    payload = {
+        "batch_number": f.get('batch_number'), "plant_name": f.get('plant_name'),
+        "quantity": int(f.get('quantity', 0)), "photo_url": p_url
+    }
+    supabase.table("farms").insert(payload).execute()
+    return jsonify({"status": "ok"})
 
-        photo_url = ""
-        if file:
-            # 將檔案上傳至 Supabase Storage
-            file_ext = file.filename.split('.')[-1]
-            file_name = f"{uuid.uuid4()}.{file_ext}"
-            file_data = file.read()
-            
-            # 上傳至 'evidences' Bucket
-            storage_res = supabase.storage.from_('evidences').upload(file_name, file_data, {"content-type": file.content_type})
-            # 取得公開網址
-            photo_url = supabase.storage.from_('evidences').get_public_url(file_name)
-
-        # 寫入資料表
-        payload = {
-            "batch_number": batch,
-            "plant_name": plant,
-            "quantity": int(qty) if qty else 0,
-            "in_stock_date": in_date if in_date else None,
-            "out_stock_date": out_date if out_date else None,
-            "photo_url": photo_url
-        }
-        res = supabase.table("farms").insert(payload).execute()
-        return jsonify({"status": "success", "data": res.data})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# 3. 新增案場 (純文字)
 @app.route('/api/add_project', methods=['POST'])
 def add_project():
-    try:
-        data = request.json
-        res = supabase.table("projects").insert(data).execute()
-        return jsonify({"status": "success", "data": res.data})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    supabase.table("projects").insert(request.json).execute()
+    return jsonify({"status": "ok"})
+
+@app.route('/api/protocol')
+def protocol():
+    return jsonify({"source": "環境部碳足跡資料庫 2026", "standard": "ISO 14064-1:2018"})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)))
