@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>蕨積 | 數據管理後台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-xl mx-auto space-y-8">
+        <div class="bg-white p-6 rounded-2xl shadow">
+            <h2 class="text-xl font-bold text-green-700 mb-4">🌿 農場進出貨登錄</h2>
+            <form id="farmForm" class="space-y-3">
+                <input type="text" id="batch_number" placeholder="批號 (如: B20260224)" class="w-full border p-2 rounded">
+                <input type="text" id="plant_name" placeholder="植物品種" class="w-full border p-2 rounded">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="date" id="in_date" class="border p-2 rounded">
+                    <input type="date" id="out_date" class="border p-2 rounded">
+                </div>
+                <input type="text" id="photo_url" placeholder="照片網址 (暫時手動輸入)" class="w-full border p-2 rounded">
+                <button type="button" onclick="submitFarm()" class="w-full bg-green-600 text-white py-2 rounded">儲存農場數據</button>
+            </form>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl shadow">
+            <h2 class="text-xl font-bold text-blue-700 mb-4">🏗️ 新增建案資料</h2>
+            <form id="projectForm" class="space-y-3">
+                <input type="text" id="p_name" placeholder="建案名稱" class="w-full border p-2 rounded">
+                <input type="number" id="p_area" placeholder="建置平方米" class="w-full border p-2 rounded">
+                <input type="number" id="p_plants" placeholder="植栽總數量" class="w-full border p-2 rounded">
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" id="p_recycled"> <span>使用循環資材</span>
+                </label>
+                <button type="button" onclick="submitProject()" class="w-full bg-blue-600 text-white py-2 rounded">建立案場</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        async function submitFarm() {
+            const data = {
+                batch_number: document.getElementById('batch_number').value,
+                plant_name: document.getElementById('plant_name').value,
+                in_stock_date: document.getElementById('in_date').value,
+                out_stock_date: document.getElementById('out_date').value,
+                photo_url: document.getElementById('photo_url').value
+            };
+            await fetch('/api/add_farm', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+            alert('農場數據已存檔');
+        }
+
+        async function submitProject() {
+            const data = {
+                project_name: document.getElementById('p_name').value,
+                area_sqm: parseFloat(document.getElementById('p_area').value),
+                plant_total_count: parseInt(document.getElementById('p_plants').value),
+                is_recycled: document.getElementById('p_recycled').checked
+            };
+            await fetch('/api/add_project', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) });
+            alert('建案已建立');
+        }
+    </script>
+</body>
+</html>
