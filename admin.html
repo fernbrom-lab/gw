@@ -3,116 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>蕨積 | 數據管理後台</title>
+    <title>蕨積 | 數據管理</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-slate-100 p-4 md:p-10 font-sans">
+<body class="bg-slate-100 p-4 md:p-10">
     <div class="max-w-xl mx-auto space-y-8">
-        <h1 class="text-3xl font-black text-slate-800 tracking-tighter">蕨積 ADMIN</h1>
+        <h1 class="text-3xl font-black text-slate-800">蕨積 ADMIN</h1>
 
-        <div class="bg-white p-6 rounded-3xl shadow-xl border border-white">
-            <h2 class="text-xl font-bold text-green-700 mb-6 flex items-center">
-                <span class="mr-2">🌿</span> 農場數據登錄
-            </h2>
-            <div class="space-y-4">
-                <input type="text" id="batch_number" placeholder="批號 (例如: B2026-001)" class="w-full border p-4 rounded-2xl bg-gray-50 outline-none focus:ring-2 focus:ring-green-500 transition">
+        <div class="bg-white p-6 rounded-3xl shadow-xl">
+            <h2 class="text-xl font-bold text-green-700 mb-6 italic">🌿 農場數據登錄</h2>
+            <form id="farmForm" class="space-y-4">
+                <input type="text" name="batch_number" placeholder="批號" class="w-full border p-4 rounded-2xl bg-gray-50 outline-none">
                 <div class="grid grid-cols-2 gap-4">
-                    <input type="text" id="plant_name" placeholder="植物品種" class="border p-4 rounded-2xl bg-gray-50 outline-none">
-                    <input type="number" id="farm_qty" placeholder="入庫數量 (株)" class="border p-4 rounded-2xl bg-gray-50 outline-none">
+                    <input type="text" name="plant_name" placeholder="植物品種" class="border p-4 rounded-2xl bg-gray-50">
+                    <input type="number" name="quantity" placeholder="入庫數量" class="border p-4 rounded-2xl bg-gray-50">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-gray-400 ml-2">進貨日期</label>
-                        <input type="date" id="in_date" class="w-full border p-3 rounded-xl bg-gray-50">
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-gray-400 ml-2">預計出貨</label>
-                        <input type="date" id="out_date" class="w-full border p-3 rounded-xl bg-gray-50">
-                    </div>
+                    <input type="date" name="in_stock_date" class="border p-3 rounded-xl bg-gray-50">
+                    <input type="date" name="out_stock_date" class="border p-3 rounded-xl bg-gray-50">
                 </div>
-                
-                <div class="bg-slate-50 border-2 border-dashed border-gray-200 p-6 rounded-2xl text-center">
-                    <input type="file" id="photo_file" accept="image/*" class="hidden">
-                    <button type="button" onclick="document.getElementById('photo_file').click()" class="bg-white px-6 py-2 rounded-full shadow-sm border text-sm font-bold hover:bg-gray-50 transition">📸 拍攝或選取照片</button>
-                    <p id="upload-status" class="text-[10px] mt-3 text-gray-400 italic">尚未選取檔案</p>
+                <div class="border-2 border-dashed p-6 rounded-2xl text-center">
+                    <input type="file" id="photo" name="photo" accept="image/*" class="hidden">
+                    <button type="button" onclick="document.getElementById('photo').click()" class="bg-gray-200 px-6 py-2 rounded-full text-sm font-bold">📸 拍攝或選取照片</button>
+                    <p id="file-name" class="text-[10px] mt-2 text-gray-400 font-mono italic">尚未選取</p>
                 </div>
-
-                <button type="button" id="btn-farm" onclick="submitFarm()" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-lg hover:bg-green-700 active:scale-95 transition">儲存農場數據</button>
-            </div>
+                <button type="button" onclick="submitFarm()" id="btnFarm" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-lg">儲存並上傳</button>
+            </form>
         </div>
 
-        <div class="bg-white p-6 rounded-3xl shadow-xl border border-white">
-            <h2 class="text-xl font-bold text-blue-700 mb-6 flex items-center">
-                <span class="mr-2">🏗️</span> 新增案場資料
-            </h2>
+        <div class="bg-white p-6 rounded-3xl shadow-xl">
+            <h2 class="text-xl font-bold text-blue-700 mb-6 italic">🏗️ 新增案場資料</h2>
             <div class="space-y-4">
-                <input type="text" id="p_name" placeholder="案場名稱 (例如: 台北大巨蛋)" class="w-full border p-4 rounded-2xl bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 transition">
+                <input type="text" id="p_name" placeholder="案場名稱" class="w-full border p-4 rounded-2xl bg-gray-50 outline-none">
                 <div class="grid grid-cols-2 gap-4">
-                    <input type="number" id="p_area" placeholder="建置平方米" class="border p-4 rounded-2xl bg-gray-50 outline-none">
-                    <input type="number" id="p_plants" placeholder="植栽需求量" class="border p-4 rounded-2xl bg-gray-50 outline-none">
+                    <input type="number" id="p_area" placeholder="平方米" class="border p-4 rounded-2xl bg-gray-50">
+                    <input type="number" id="p_plants" placeholder="需求量" class="border p-4 rounded-2xl bg-gray-50">
                 </div>
-                <label class="flex items-center space-x-3 p-4 bg-gray-50 rounded-2xl cursor-pointer">
-                    <input type="checkbox" id="p_recycled" class="w-5 h-5 rounded border-gray-300 text-blue-600">
-                    <span class="text-sm font-bold text-gray-600">本案場使用循環資材</span>
+                <label class="flex items-center space-x-3 p-4 bg-gray-50 rounded-2xl">
+                    <input type="checkbox" id="p_recycled" class="w-5 h-5"> <span class="text-sm font-bold">循環資材</span>
                 </label>
-                <button type="button" id="btn-project" onclick="submitProject()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg hover:bg-blue-700 active:scale-95 transition">建立案場</button>
+                <button type="button" onclick="submitProject()" id="btnProject" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg">建立案場</button>
             </div>
         </div>
     </div>
-<script>
-    const supabaseUrl = 'https://fvvbmedluaipqiqjiujj.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2dmJtZWRsdWFpcHFpcWppdWpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4Nzc4NzYsImV4cCI6MjA4NzQ1Mzg3Nn0.U22L6P5HoyoPtEuoU5fhk8C5JZ-4-3O4vkQPzJeD9Uw'; 
-    
-    // 初始化檢查
-    let supabase;
-    try {
-        supabase = supabasejs.createClient(supabaseUrl, supabaseKey);
-        console.log("✅ Supabase 客戶端已啟動");
-    } catch (e) {
-        console.error("❌ Supabase 初始化失敗:", e);
-    }
 
-    async function submitProject() {
-        console.log("🚀 按鈕已按下：開始建立案場"); // 如果沒印出這行，代表 HTML button 沒連到這個 function
-        const btn = document.getElementById('btn-project');
-        
-        try {
-            btn.innerText = "建立中...";
+    <script>
+        // 1. 提交農場數據 (包含圖片)
+        async function submitFarm() {
+            const btn = document.getElementById('btnFarm');
+            const form = document.getElementById('farmForm');
+            const formData = new FormData(form);
+
+            btn.innerText = "正在上傳至伺服器...";
             btn.disabled = true;
 
-            const payload = {
+            try {
+                const res = await fetch('/api/add_farm', { method: 'POST', body: formData });
+                if (!res.ok) throw new Error("伺服器錯誤");
+                alert("農場數據上傳成功！");
+                location.reload();
+            } catch (e) {
+                alert("錯誤: " + e.message);
+            } finally {
+                btn.innerText = "儲存並上傳";
+                btn.disabled = false;
+            }
+        }
+
+        // 2. 提交案場數據
+        async function submitProject() {
+            const btn = document.getElementById('btnProject');
+            const data = {
                 project_name: document.getElementById('p_name').value,
                 area_sqm: parseFloat(document.getElementById('p_area').value) || 0,
                 plant_total_count: parseInt(document.getElementById('p_plants').value) || 0,
                 is_recycled: document.getElementById('p_recycled').checked
             };
-            console.log("📦 準備送出的資料:", payload);
 
-            const res = await fetch('/api/add_project', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(payload)
-            });
+            btn.innerText = "建立中...";
+            btn.disabled = true;
 
-            console.log("📡 API 回傳狀態:", res.status);
-            
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || 'API 傳送失敗');
+            try {
+                const res = await fetch('/api/add_project', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (!res.ok) throw new Error("建立失敗");
+                alert("案場建立成功！");
+                location.reload();
+            } catch (e) {
+                alert("錯誤: " + e.message);
+            } finally {
+                btn.innerText = "建立案場";
+                btn.disabled = false;
             }
-            
-            alert('建案建立成功！');
-            location.reload();
-        } catch (err) {
-            console.error("❌ 發生錯誤:", err);
-            alert('錯誤: ' + err.message);
-        } finally {
-            btn.innerText = "建立案場";
-            btn.disabled = false;
         }
-    }
-</script>
-   
+
+        document.getElementById('photo').onchange = function() {
+            document.getElementById('file-name').innerText = "已選取: " + this.files[0].name;
+        };
+    </script>
 </body>
 </html>
