@@ -41,7 +41,7 @@ def index():
 def admin(): 
     return send_from_directory('.', 'admin.html')
 
-# ========== 農場主表 ==========
+# ========== 取得所有資料 ==========
 @app.route('/api/farms', methods=['GET'])
 def get_farms():
     try:
@@ -50,6 +50,8 @@ def get_farms():
         farms = farms_res.data
         
         result = []
+        total_plants = 0
+        
         for farm in farms:
             # 取得該批次的所有生長紀錄
             growth_res = supabase.table("farm_growth_records")\
@@ -65,30 +67,45 @@ def get_farms():
                 .order("shipment_date", desc=True)\
                 .execute()
             
+            # 計算已出貨總量
+            total_shipped = sum(s.get('quantity', 0) for s in shipments_res.data)
+            
+            # 當前庫存 = 初始數量 - 已出貨總量
+            current_quantity = farm.get('initial_quantity', 0) - total_shipped
+            
+            # 更新資料庫中的當前庫存（保持同步）
+            supabase.table("farms")\
+                .update({"quantity": current_quantity})\
+                .eq("id", farm['id'])\
+                .execute()
+            
             farm_data = {
                 **farm,
+                "quantity": current_quantity,  # 確保使用最新計算值
                 "growth_records": growth_res.data,
                 "shipments": shipments_res.data,
-                "total_shipped": sum(s.get('quantity', 0) for s in shipments_res.data)
+                "total_shipped": total_shipped
             }
             result.append(farm_data)
+            
+            if current_quantity > 0:
+                total_plants += current_quantity
         
-        # 計算總碳吸收（根據當前庫存）
-        total_plants = sum(f.get('current_quantity', 0) for f in farms)
-        total_carbon = total_plants * CARBON_FACTOR * 30  # 粗略估算
+        # 計算總碳吸收
+        total_carbon = total_plants * CARBON_FACTOR * 30
         
         return jsonify({
             "farms": result,
             "summary": {
                 "total_plants": total_plants,
                 "total_carbon_kg": round(total_carbon, 2),
-                "active_batches": len([f for f in farms if f.get('current_quantity', 0) > 0])
+                "active_batches": len([f for f in result if f.get('quantity', 0) > 0])
             }
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 新增植物批次
+# ========== 新增植物批次 ==========
 @app.route('/api/add_farm', methods=['POST'])
 def add_farm():
     try:
@@ -98,47 +115,37 @@ def add_farm():
         
         quantity = int(request.form.get('quantity', 0))
         
+        # 處理照片
+        photo_url = ""
+        photo = request.files.get('photo')
+        if photo and photo.filename:
+            photo_url = upload_photo(photo)
+        
         # 插入主表
         farm_data = {
             "batch_number": batch_number,
             "plant_name": request.form.get('plant_name', ''),
             "initial_quantity": quantity,
-            "current_quantity": quantity,
+            "quantity": quantity,  # 當前庫存等於初始數量
             "in_date": request.form.get('in_date') or None,
             "supplier": request.form.get('supplier', ''),
-            "notes": request.form.get('notes', '')
+            "notes": request.form.get('notes', ''),
+            "photo_url": photo_url
         }
         
-        farm_res = supabase.table("farms").insert(farm_data).execute()
-        farm_id = farm_res.data[0]['id']
+        result = supabase.table("farms").insert(farm_data).execute()
         
-        # 處理照片（如果有）
-        photo = request.files.get('photo')
-        if photo and photo.filename:
-            photo_url = upload_photo(photo)
-            if photo_url:
-                # 建立初始生長紀錄
-                growth_data = {
-                    "farm_id": farm_id,
-                    "record_date": request.form.get('in_date') or datetime.now().strftime('%Y-%m-%d'),
-                    "quantity": quantity,
-                    "photo_url": photo_url,
-                    "notes": "初始入庫"
-                }
-                supabase.table("farm_growth_records").insert(growth_data).execute()
-        
-        return jsonify({"status": "ok", "farm_id": farm_id})
+        return jsonify({"status": "ok", "farm_id": result.data[0]['id']})
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ========== 生長紀錄 ==========
+# ========== 新增生長紀錄 ==========
 @app.route('/api/add_growth_record', methods=['POST'])
 def add_growth_record():
     try:
         farm_id = request.form.get('farm_id')
         record_date = request.form.get('record_date') or datetime.now().strftime('%Y-%m-%d')
-        quantity = request.form.get('quantity')
         notes = request.form.get('notes', '')
         
         # 處理照片
@@ -150,25 +157,17 @@ def add_growth_record():
         growth_data = {
             "farm_id": farm_id,
             "record_date": record_date,
-            "quantity": int(quantity) if quantity else None,
-            "photo_url": photo_url,
-            "notes": notes
+            "notes": notes,
+            "photo_url": photo_url
         }
         
         result = supabase.table("farm_growth_records").insert(growth_data).execute()
-        
-        # 如果有更新數量，同步更新主表的 current_quantity
-        if quantity:
-            supabase.table("farms")\
-                .update({"current_quantity": int(quantity)})\
-                .eq("id", farm_id)\
-                .execute()
         
         return jsonify({"status": "ok", "data": result.data})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ========== 出貨紀錄 ==========
+# ========== 新增出貨紀錄 ==========
 @app.route('/api/add_shipment', methods=['POST'])
 def add_shipment():
     try:
@@ -182,14 +181,26 @@ def add_shipment():
         if quantity <= 0:
             return jsonify({"error": "出貨數量必須大於0"}), 400
         
-        # 檢查庫存是否足夠
-        farm_res = supabase.table("farms").select("current_quantity").eq("id", farm_id).execute()
+        # 取得目前庫存
+        farm_res = supabase.table("farms").select("initial_quantity, quantity").eq("id", farm_id).execute()
         if not farm_res.data:
             return jsonify({"error": "找不到該批次"}), 404
         
-        current = farm_res.data[0].get('current_quantity', 0)
-        if quantity > current:
-            return jsonify({"error": f"庫存不足，目前僅有 {current} 株"}), 400
+        farm = farm_res.data[0]
+        current = farm.get('quantity', 0)
+        initial = farm.get('initial_quantity', 0)
+        
+        # 計算已出貨總量
+        shipments_res = supabase.table("farm_shipments")\
+            .select("quantity")\
+            .eq("farm_id", farm_id)\
+            .execute()
+        total_shipped = sum(s.get('quantity', 0) for s in shipments_res.data)
+        
+        # 檢查庫存是否足夠（考慮到還沒加入這次的出貨）
+        if quantity > (initial - total_shipped):
+            available = initial - total_shipped
+            return jsonify({"error": f"庫存不足，目前可出貨數量為 {available} 株"}), 400
         
         # 新增出貨紀錄
         shipment_data = {
@@ -202,23 +213,20 @@ def add_shipment():
         
         result = supabase.table("farm_shipments").insert(shipment_data).execute()
         
-        # 更新庫存
-        new_quantity = current - quantity
-        supabase.table("farms").update({"current_quantity": new_quantity}).eq("id", farm_id).execute()
+        # 更新庫存（新的庫存 = 初始數量 - 所有出貨總和）
+        new_total_shipped = total_shipped + quantity
+        new_quantity = initial - new_total_shipped
+        
+        supabase.table("farms")\
+            .update({"quantity": new_quantity})\
+            .eq("id", farm_id)\
+            .execute()
         
         return jsonify({"status": "ok", "data": result.data})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ========== 刪除功能 ==========
-@app.route('/api/delete_farm/<farm_id>', methods=['DELETE'])
-def delete_farm(farm_id):
-    try:
-        supabase.table("farms").delete().eq("id", farm_id).execute()
-        return jsonify({"status": "ok"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
+# ========== 刪除生長紀錄 ==========
 @app.route('/api/delete_growth_record/<record_id>', methods=['DELETE'])
 def delete_growth_record(record_id):
     try:
@@ -227,34 +235,57 @@ def delete_growth_record(record_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ========== 刪除出貨紀錄 ==========
 @app.route('/api/delete_shipment/<shipment_id>', methods=['DELETE'])
 def delete_shipment(shipment_id):
     try:
-        # 先取得出貨紀錄，以便恢復庫存
+        # 先取得出貨紀錄，以便重新計算庫存
         shipment = supabase.table("farm_shipments").select("*").eq("id", shipment_id).execute()
-        if shipment.data:
-            s = shipment.data[0]
-            farm_id = s['farm_id']
-            quantity = s['quantity']
-            
-            # 恢復庫存
-            farm = supabase.table("farms").select("current_quantity").eq("id", farm_id).execute()
-            if farm.data:
-                current = farm.data[0].get('current_quantity', 0)
-                supabase.table("farms")\
-                    .update({"current_quantity": current + quantity})\
-                    .eq("id", farm_id)\
-                    .execute()
+        if not shipment.data:
+            return jsonify({"error": "找不到出貨紀錄"}), 404
+        
+        s = shipment.data[0]
+        farm_id = s['farm_id']
+        deleted_quantity = s['quantity']
         
         # 刪除出貨紀錄
         supabase.table("farm_shipments").delete().eq("id", shipment_id).execute()
+        
+        # 重新計算該批次的所有出貨總量
+        shipments_res = supabase.table("farm_shipments")\
+            .select("quantity")\
+            .eq("farm_id", farm_id)\
+            .execute()
+        total_shipped = sum(s.get('quantity', 0) for s in shipments_res.data)
+        
+        # 取得初始數量
+        farm_res = supabase.table("farms").select("initial_quantity").eq("id", farm_id).execute()
+        if farm_res.data:
+            initial = farm_res.data[0].get('initial_quantity', 0)
+            new_quantity = initial - total_shipped
+            
+            # 更新庫存
+            supabase.table("farms")\
+                .update({"quantity": new_quantity})\
+                .eq("id", farm_id)\
+                .execute()
+        
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ========== 刪除整個批次 ==========
+@app.route('/api/delete_farm/<farm_id>', methods=['DELETE'])
+def delete_farm(farm_id):
+    try:
+        supabase.table("farms").delete().eq("id", farm_id).execute()
         return jsonify({"status": "ok"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/test', methods=['GET'])
 def test():
-    return jsonify({"status": "ok", "message": "農場碳管理系統 v2 - 支援分批出貨"})
+    return jsonify({"status": "ok", "message": "農場碳管理系統 v3 - 修正出貨邏輯"})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000, debug=True)
