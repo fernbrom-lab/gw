@@ -13,22 +13,35 @@ url = os.getenv("SUPABASE_URL")
 key = os.getenv("SUPABASE_KEY")
 supabase = create_client(url, key)
 
-# 植物基礎係數（每株每月吸收 kg CO2）- 引用農業試驗所數據
+# 植物基礎係數（每株每月吸收 kg CO2）
 PLANT_BASE_FACTORS = {
-    '鹿角蕨': 0.06,      # 引用：農業試驗所植物碳匯資料庫 (2024)
-    '積水鳳梨': 0.04,    # 引用：農業試驗所植物碳匯資料庫 (2024)
-    '其他': 0.05         # 引用：IPCC 國家溫室氣體清單指南 (平均值)
+    '鹿角蕨': 0.06,
+    '積水鳳梨': 0.04,
+    '其他': 0.05
 }
 
-# 大小倍率（根據 biomass 比例估算）
+# 大小倍率
 SIZE_MULTIPLIERS = {
-    'small': 0.5,    # 小型：biomass 約0.5kg
-    'medium': 1.0,   # 中型：biomass 約1.0kg (基準)
-    'large': 1.5     # 大型：biomass 約1.5kg
+    'small': 0.5,
+    'medium': 1.0,
+    'large': 1.5
 }
 
-# 不確定性範圍 (±20%，符合ISO 14064-1透明度要求)
-UNCERTAINTY_RANGE = 0.2  # 20%
+# 不確定性範圍
+UNCERTAINTY_RANGE = 0.2
+
+# 提供靜態檔案（包含 logo.png）
+@app.route('/<path:path>')
+def serve_static(path):
+    return send_from_directory('.', path)
+
+@app.route('/')
+def index(): 
+    return send_from_directory('.', 'index.html')
+
+@app.route('/admin')
+def admin(): 
+    return send_from_directory('.', 'admin.html')
 
 # 上傳照片到 Supabase Storage
 def upload_photo(photo, folder="farms"):
@@ -49,25 +62,15 @@ def upload_photo(photo, folder="farms"):
         print(f"照片上傳失敗: {e}")
         return ""
 
-# 計算碳吸收量（含不確定性範圍）
+# 計算碳吸收量
 def calculate_carbon_absorption(plant_type, plant_size, quantity, in_date, current_date=None):
-    """
-    計算特定批次的碳吸收量
-    回傳包含：數值、低標、高標、不確定範圍
-    """
     if not quantity or quantity <= 0 or not in_date:
         return None
     
-    # 取得基礎係數
     base_factor = PLANT_BASE_FACTORS.get(plant_type, 0.05)
-    
-    # 取得大小倍率
     size_multiplier = SIZE_MULTIPLIERS.get(plant_size, 1.0)
-    
-    # 最終吸收率
     final_factor = base_factor * size_multiplier
     
-    # 處理日期
     if isinstance(in_date, str):
         try:
             in_date = datetime.strptime(in_date, '%Y-%m-%d').date()
@@ -77,44 +80,21 @@ def calculate_carbon_absorption(plant_type, plant_size, quantity, in_date, curre
     if current_date is None:
         current_date = date.today()
     
-    # 計算在庫天數
     days = (current_date - in_date).days
     if days <= 0:
         return None
     
-    # 轉換為月份（每月30天估算）
     months = days / 30
-    
-    # 計算吸收量
     absorption = quantity * final_factor * months
-    
-    # 計算不確定性範圍 (±20%)
-    uncertainty_low = absorption * (1 - UNCERTAINTY_RANGE)
-    uncertainty_high = absorption * (1 + UNCERTAINTY_RANGE)
-    
-    # 計算年化吸收量（讓客戶更容易理解）
-    yearly_absorption = quantity * final_factor * 12
     
     return {
         "value": round(absorption, 2),
-        "low": round(uncertainty_low, 2),
-        "high": round(uncertainty_high, 2),
-        "yearly": round(yearly_absorption, 2),
-        "uncertainty": f"±{int(UNCERTAINTY_RANGE*100)}%",
+        "low": round(absorption * (1 - UNCERTAINTY_RANGE), 2),
+        "high": round(absorption * (1 + UNCERTAINTY_RANGE), 2),
         "days": days,
         "months": round(months, 1),
-        "final_factor": round(final_factor, 3),
-        "plant_type": plant_type,
-        "plant_size": plant_size
+        "final_factor": round(final_factor, 3)
     }
-
-@app.route('/')
-def index(): 
-    return send_from_directory('.', 'index.html')
-
-@app.route('/admin')
-def admin(): 
-    return send_from_directory('.', 'admin.html')
 
 # ========== 取得所有資料 ==========
 @app.route('/api/farms', methods=['GET'])
@@ -126,20 +106,18 @@ def get_farms():
         
         result = []
         total_plants = 0
-        total_carbon_low = 0
-        total_carbon_mid = 0
-        total_carbon_high = 0
+        total_carbon = 0
         today = date.today()
         
         for farm in farms:
-            # 取得該批次的所有生長紀錄
+            # 取得生長紀錄
             growth_res = supabase.table("farm_growth_records")\
                 .select("*")\
                 .eq("farm_id", farm['id'])\
                 .order("record_date", desc=True)\
                 .execute()
             
-            # 取得該批次的所有出貨紀錄
+            # 取得出貨紀錄
             shipments_res = supabase.table("farm_shipments")\
                 .select("*")\
                 .eq("farm_id", farm['id'])\
@@ -175,10 +153,11 @@ def get_farms():
                 )
                 
                 if absorption_data:
-                    total_carbon_mid += absorption_data['value']
-                    total_carbon_low += absorption_data['low']
-                    total_carbon_high += absorption_data['high']
-                    total_plants += current_quantity
+                    total_carbon += absorption_data['value']
+            
+            # 加到總庫存（只加有庫存的）
+            if current_quantity > 0:
+                total_plants += current_quantity
             
             farm_data = {
                 **farm,
@@ -190,17 +169,18 @@ def get_farms():
             }
             result.append(farm_data)
         
+        # 計算進行中批次（庫存大於0的數量）
+        active_batches = len([f for f in result if f.get('quantity', 0) > 0])
+        
+        print(f"總庫存計算: {total_plants}")  # 除錯用
+        print(f"進行中批次: {active_batches}")
+        
         return jsonify({
             "farms": result,
             "summary": {
                 "total_plants": total_plants,
-                "total_carbon_kg": round(total_carbon_mid, 2),
-                "total_carbon_range": {
-                    "low": round(total_carbon_low, 2),
-                    "high": round(total_carbon_high, 2)
-                },
-                "active_batches": len([f for f in result if f.get('quantity', 0) > 0]),
-                "uncertainty": f"±{int(UNCERTAINTY_RANGE*100)}%"
+                "total_carbon_kg": round(total_carbon, 2),
+                "active_batches": active_batches
             }
         })
     except Exception as e:
@@ -217,17 +197,14 @@ def add_farm():
         
         quantity = int(request.form.get('quantity', 0))
         
-        # 處理照片
         photo_url = ""
         photo = request.files.get('photo')
         if photo and photo.filename:
             photo_url = upload_photo(photo)
         
-        # 取得植物類型和大小
         plant_type = request.form.get('plant_type', '其他')
         plant_size = request.form.get('plant_size', 'medium')
         
-        # 插入主表
         farm_data = {
             "batch_number": batch_number,
             "plant_name": request.form.get('plant_name', ''),
@@ -240,8 +217,6 @@ def add_farm():
             "notes": request.form.get('notes', ''),
             "photo_url": photo_url
         }
-        
-        print("新增批次:", farm_data)
         
         result = supabase.table("farms").insert(farm_data).execute()
         
@@ -259,7 +234,6 @@ def add_growth_record():
         record_date = request.form.get('record_date') or datetime.now().strftime('%Y-%m-%d')
         notes = request.form.get('notes', '')
         
-        # 處理照片
         photo_url = ""
         photo = request.files.get('photo')
         if photo and photo.filename:
@@ -293,27 +267,22 @@ def add_shipment():
         if quantity <= 0:
             return jsonify({"error": "出貨數量必須大於0"}), 400
         
-        # 取得目前庫存
-        farm_res = supabase.table("farms").select("initial_quantity, quantity").eq("id", farm_id).execute()
+        farm_res = supabase.table("farms").select("initial_quantity").eq("id", farm_id).execute()
         if not farm_res.data:
             return jsonify({"error": "找不到該批次"}), 404
         
-        farm = farm_res.data[0]
-        initial = farm.get('initial_quantity', 0)
+        initial = farm_res.data[0].get('initial_quantity', 0)
         
-        # 計算已出貨總量
         shipments_res = supabase.table("farm_shipments")\
             .select("quantity")\
             .eq("farm_id", farm_id)\
             .execute()
         total_shipped = sum(s.get('quantity', 0) for s in shipments_res.data)
         
-        # 檢查庫存是否足夠
         available = initial - total_shipped
         if quantity > available:
             return jsonify({"error": f"庫存不足，目前可出貨數量為 {available} 株"}), 400
         
-        # 新增出貨紀錄
         shipment_data = {
             "farm_id": farm_id,
             "shipment_date": shipment_date,
@@ -324,7 +293,6 @@ def add_shipment():
         
         result = supabase.table("farm_shipments").insert(shipment_data).execute()
         
-        # 更新庫存
         new_quantity = available - quantity
         supabase.table("farms")\
             .update({"quantity": new_quantity})\
@@ -336,21 +304,15 @@ def add_shipment():
         print(f"錯誤: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# ========== 刪除生長紀錄 ==========
+# ========== 刪除功能 ==========
 @app.route('/api/delete_growth_record/<record_id>', methods=['DELETE'])
 def delete_growth_record(record_id):
     try:
-        check = supabase.table("farm_growth_records").select("*").eq("id", record_id).execute()
-        if not check.data:
-            return jsonify({"error": "找不到該筆生長紀錄"}), 404
-        
         supabase.table("farm_growth_records").delete().eq("id", record_id).execute()
-        return jsonify({"status": "ok", "message": "刪除成功"})
+        return jsonify({"status": "ok"})
     except Exception as e:
-        print(f"刪除生長紀錄錯誤: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# ========== 刪除出貨紀錄 ==========
 @app.route('/api/delete_shipment/<shipment_id>', methods=['DELETE'])
 def delete_shipment(shipment_id):
     try:
@@ -363,7 +325,6 @@ def delete_shipment(shipment_id):
         
         supabase.table("farm_shipments").delete().eq("id", shipment_id).execute()
         
-        # 重新計算庫存
         shipments_res = supabase.table("farm_shipments")\
             .select("quantity")\
             .eq("farm_id", farm_id)\
@@ -374,43 +335,27 @@ def delete_shipment(shipment_id):
         if farm_res.data:
             initial = farm_res.data[0].get('initial_quantity', 0)
             new_quantity = initial - total_shipped
-            if new_quantity < 0:
-                new_quantity = 0
-            
             supabase.table("farms")\
                 .update({"quantity": new_quantity})\
                 .eq("id", farm_id)\
                 .execute()
         
-        return jsonify({"status": "ok", "message": "刪除成功"})
+        return jsonify({"status": "ok"})
     except Exception as e:
-        print(f"刪除出貨紀錄錯誤: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-# ========== 刪除整個批次 ==========
 @app.route('/api/delete_farm/<farm_id>', methods=['DELETE'])
 def delete_farm(farm_id):
     try:
-        check = supabase.table("farms").select("*").eq("id", farm_id).execute()
-        if not check.data:
-            return jsonify({"error": "找不到該批次"}), 404
-        
         supabase.table("farms").delete().eq("id", farm_id).execute()
-        return jsonify({"status": "ok", "message": "刪除成功"})
+        return jsonify({"status": "ok"})
     except Exception as e:
-        print(f"刪除批次錯誤: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 # ========== 測試連線 ==========
 @app.route('/api/test', methods=['GET'])
 def test():
-    return jsonify({
-        "status": "ok", 
-        "message": "農場碳管理系統 v5 - 支援不確定範圍",
-        "plant_factors": PLANT_BASE_FACTORS,
-        "size_multipliers": SIZE_MULTIPLIERS,
-        "uncertainty": f"±{int(UNCERTAINTY_RANGE*100)}%"
-    })
+    return jsonify({"status": "ok", "message": "系統正常運作"})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000, debug=True)
