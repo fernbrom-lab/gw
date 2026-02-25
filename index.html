@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>農場碳管理 - 看見植物每一天的貢獻</title>
+    <title>蕨積碳管理 - 看見植物每一天的貢獻</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
@@ -171,17 +171,18 @@
 <body class="p-4">
     <div class="max-w-lg mx-auto">
         <!-- 標頭 - 加入 Logo 和淺綠底色 -->
-        <header class="mb-6">
-            <div class="logo-container">
-                <img src="/logo.png" alt="Logo" class="logo" onerror="this.style.display='none'">
-                <div>
-                    <h1 class="text-3xl font-black text-green-800 tracking-tight">
-                        🌱 植物碳足跡
-                    </h1>
-                    <p class="text-sm text-green-600/80 mt-0.5">看見每一天的綠色貢獻</p>
-                </div>
-            </div>
-        </header>
+       <header class="mb-6">
+    <div class="logo-container">
+        <img src="/logo.png" alt="Logo" class="logo" 
+             onerror="this.onerror=null; this.style.display='none'; console.log('Logo 載入失敗')">
+        <div>
+            <h1 class="text-3xl font-black text-green-800 tracking-tight">
+                蕨積碳足跡
+            </h1>
+            <p class="text-sm text-green-600/80 mt-0.5">看見每一天的綠色貢獻</p>
+        </div>
+    </div>
+</header>
 
         <!-- 統計卡片 - 修正數字加總問題 -->
         <div class="grid grid-cols-3 gap-3 mb-6">
