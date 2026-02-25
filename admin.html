@@ -15,6 +15,13 @@
         input[type="file"]::file-selector-button:hover { background: #cbd5e1; }
         .upload-success { background-color: #f0fdf4; border: 1px solid #86efac; }
         .upload-error { background-color: #fef2f2; border: 1px solid #fecaca; }
+        .delete-btn {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .record-item:hover .delete-btn {
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="bg-slate-50 p-4 font-sans text-sm antialiased">
@@ -95,7 +102,7 @@
             <div id="project-result" class="mt-4 p-3 rounded-xl text-sm hidden"></div>
         </div>
 
-        <!-- 顯示最近上傳的資料 -->
+        <!-- 顯示最近上傳的資料（加入刪除功能） -->
         <div class="bg-white p-6 rounded-3xl shadow-lg">
             <h3 class="font-bold text-lg mb-4">📋 最近上傳紀錄</h3>
             <div id="recent-data" class="text-sm text-gray-700">
@@ -127,37 +134,118 @@
                 const farms = await farmsRes.json();
                 const projects = await projectsRes.json();
                 
-                let html = '<div class="space-y-3">';
+                let html = '<div class="space-y-4">';
                 
-                html += '<p class="font-bold text-green-700">📦 最近農場資料</p>';
+                // 農場列表
+                html += '<div>';
+                html += '<p class="font-bold text-green-700 mb-2">📦 最近農場資料</p>';
                 if (farms.length === 0) {
                     html += '<p class="text-gray-400 text-xs">尚無資料</p>';
                 } else {
-                    farms.slice(0, 5).forEach(f => {
-                        html += `<div class="border-l-4 border-green-300 pl-3 py-2 bg-green-50/30 rounded">
-                            <div class="font-medium">${f.batch_number || '無批號'}</div>
-                            <div class="text-xs text-gray-600">${f.plant_name || '未填'} | ${f.quantity || 0}株</div>
-                            <div class="text-xs text-gray-400">${f.photo_url ? '📸 有照片' : '📸 無照片'}</div>
-                        </div>`;
+                    farms.slice(0, 10).forEach(f => {
+                        html += `
+                            <div class="record-item border-l-4 border-green-300 pl-3 py-2 bg-green-50/30 rounded mb-2 flex justify-between items-center group">
+                                <div class="flex-1">
+                                    <div class="font-medium">${f.batch_number || '無批號'} - ${f.plant_name || '未填'} (${f.quantity || 0}株)</div>
+                                    <div class="text-xs text-gray-400">${f.photo_url ? '📸 有照片' : '📸 無照片'} | ID: ${f.id?.substring(0,8)}...</div>
+                                </div>
+                                <button onclick="deleteFarm('${f.id}', '${f.batch_number}')" 
+                                        class="delete-btn ml-2 px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded-full transition-opacity">
+                                    刪除
+                                </button>
+                            </div>
+                        `;
                     });
                 }
+                html += '</div>';
                 
-                html += '<p class="font-bold text-blue-700 mt-4">🏗️ 最近案場</p>';
+                // 案場列表
+                html += '<div class="mt-4">';
+                html += '<p class="font-bold text-blue-700 mb-2">🏗️ 最近案場</p>';
                 if (projects.length === 0) {
                     html += '<p class="text-gray-400 text-xs">尚無資料</p>';
                 } else {
-                    projects.slice(0, 5).forEach(p => {
-                        html += `<div class="border-l-4 border-blue-300 pl-3 py-2 bg-blue-50/30 rounded">
-                            <div class="font-medium">${p.project_name || '未命名'}</div>
-                            <div class="text-xs text-gray-600">ID: ${p.id?.substring(0,8) || 'N/A'}...</div>
-                        </div>`;
+                    projects.slice(0, 10).forEach(p => {
+                        html += `
+                            <div class="record-item border-l-4 border-blue-300 pl-3 py-2 bg-blue-50/30 rounded mb-2 flex justify-between items-center group">
+                                <div class="flex-1">
+                                    <div class="font-medium">${p.project_name || '未命名'}</div>
+                                    <div class="text-xs text-gray-400">ID: ${p.id?.substring(0,8)}...</div>
+                                </div>
+                                <button onclick="deleteProject('${p.id}', '${p.project_name}')" 
+                                        class="delete-btn ml-2 px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded-full transition-opacity">
+                                    刪除
+                                </button>
+                            </div>
+                        `;
                     });
                 }
+                html += '</div>';
                 
                 html += '</div>';
                 document.getElementById('recent-data').innerHTML = html;
             } catch (e) {
                 document.getElementById('recent-data').innerHTML = '❌ 無法載入資料：' + e.message;
+            }
+        }
+
+        // 刪除農場
+        async function deleteFarm(id, name) {
+            if (!id) {
+                alert('無效的資料ID');
+                return;
+            }
+            
+            // 確認對話框
+            if (!confirm(`確定要刪除農場資料「${name}」嗎？此操作無法復原。`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/delete_farm/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await res.json();
+                
+                if (res.ok) {
+                    alert('✅ 刪除成功');
+                    loadRecent(); // 重新載入列表
+                } else {
+                    alert('❌ 刪除失敗：' + (result.error || '未知錯誤'));
+                }
+            } catch (e) {
+                alert('❌ 連線失敗：' + e.message);
+            }
+        }
+
+        // 刪除案場
+        async function deleteProject(id, name) {
+            if (!id) {
+                alert('無效的資料ID');
+                return;
+            }
+            
+            // 確認對話框
+            if (!confirm(`確定要刪除案場「${name}」嗎？此操作無法復原。`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/delete_project/${id}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await res.json();
+                
+                if (res.ok) {
+                    alert('✅ 刪除成功');
+                    loadRecent(); // 重新載入列表
+                } else {
+                    alert('❌ 刪除失敗：' + (result.error || '未知錯誤'));
+                }
+            } catch (e) {
+                alert('❌ 連線失敗：' + e.message);
             }
         }
 
