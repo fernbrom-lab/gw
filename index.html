@@ -84,7 +84,6 @@
             opacity: 1;
         }
         
-        /* 手機點擊也能顯示 */
         .info-tooltip:active .tooltip-text {
             visibility: visible;
             opacity: 1;
@@ -103,7 +102,7 @@
             </div>
         </header>
 
-        <!-- 統計卡片 - 加入計算說明 -->
+        <!-- 統計卡片 -->
         <div class="grid grid-cols-3 gap-2 mb-4">
             <!-- 庫存 -->
             <div class="stat-card">
@@ -135,9 +134,9 @@
                             • 積水鳳梨：0.04 kg<br>
                             • 其他植物：0.05 kg<br><br>
                             <strong>大小倍率：</strong><br>
-                            • 小 (3吋盆以下)：0.5x<br>
-                            • 中 (4-6吋盆)：1.0x<br>
-                            • 大 (7吋盆以上)：1.5x<br><br>
+                            • 小 (3吋以下)：0.5x<br>
+                            • 中 (4-6吋)：1.0x<br>
+                            • 大 (7吋以上)：1.5x<br><br>
                             公式：數量 × 基礎係數 × 大小倍率 × 在庫月份
                         </span>
                     </span>
@@ -153,8 +152,7 @@
                         <span class="text-gray-400 text-[12px]">ⓘ</span>
                         <span class="tooltip-text">
                             <strong>📦 進行中批次</strong><br>
-                            目前庫存大於 0 的批次數量<br>
-                            表示還有植物在照顧中
+                            目前庫存大於 0 的批次數量
                         </span>
                     </span>
                 </div>
@@ -163,7 +161,7 @@
 
         <!-- 批次列表 -->
         <div id="batches-container" class="space-y-3">
-            載入中...
+            <div class="text-center py-4 text-gray-400">載入中...</div>
         </div>
         
         <!-- 頁尾說明 -->
@@ -188,16 +186,27 @@
             'large': 1.5
         };
 
+        // 大小顯示文字
+        const SIZE_TEXT = {
+            'small': '🌱 小',
+            'medium': '🌿 中',
+            'large': '🌳 大'
+        };
+
         // 格式化日期
         function formatDate(dateStr) {
             if (!dateStr) return '無日期';
-            const d = new Date(dateStr);
-            return `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`;
+            try {
+                const d = new Date(dateStr);
+                return `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`;
+            } catch {
+                return dateStr;
+            }
         }
 
         // 計算碳吸收量
         function calculateCarbon(plantType, plantSize, quantity, inDate) {
-            if (!quantity || quantity <= 0 || !inDate) return 0;
+            if (!quantity || quantity <= 0 || !inDate) return null;
             
             // 取得基礎係數
             const baseFactor = PLANT_BASE_FACTORS[plantType] || 0.05;
@@ -210,21 +219,24 @@
             const inDateObj = new Date(inDate);
             const days = Math.floor((today - inDateObj) / (1000 * 60 * 60 * 24));
             
-            if (days <= 0) return 0;
+            if (days <= 0) return null;
             
             // 轉換為月份（每月30天）
-            const months = days / 30;
+            const months = (days / 30).toFixed(1);
             
             // 計算吸收量
-            const absorption = quantity * baseFactor * sizeMultiplier * months;
+            const finalFactor = baseFactor * sizeMultiplier;
+            const absorption = quantity * finalFactor * months;
             
             return {
-                value: absorption,
+                value: absorption.toFixed(2),
                 baseFactor: baseFactor,
                 sizeMultiplier: sizeMultiplier,
-                finalFactor: baseFactor * sizeMultiplier,
-                months: months.toFixed(1),
-                days: days
+                finalFactor: finalFactor.toFixed(3),
+                months: months,
+                days: days,
+                plantType: plantType,
+                plantSize: plantSize
             };
         }
 
@@ -233,27 +245,34 @@
             const content = document.getElementById(`growth-${batchId}`);
             const icon = document.getElementById(`icon-${batchId}`);
             
-            if (content.classList.contains('expanded')) {
-                content.classList.remove('expanded');
-                if (icon) icon.textContent = '▼';
-            } else {
-                content.classList.add('expanded');
-                if (icon) icon.textContent = '▲';
+            if (content) {
+                if (content.classList.contains('expanded')) {
+                    content.classList.remove('expanded');
+                    if (icon) icon.textContent = '▼';
+                } else {
+                    content.classList.add('expanded');
+                    if (icon) icon.textContent = '▲';
+                }
             }
         }
 
         // 載入資料
         async function loadData() {
+            const container = document.getElementById('batches-container');
+            
             try {
                 const res = await fetch('/api/farms');
+                
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                
                 const data = await res.json();
                 
                 // 更新統計
                 document.getElementById('total-plants').textContent = data.summary.total_plants;
                 document.getElementById('total-carbon').textContent = data.summary.total_carbon_kg;
                 document.getElementById('active-batches').textContent = data.summary.active_batches;
-                
-                const container = document.getElementById('batches-container');
                 
                 if (data.farms.length === 0) {
                     container.innerHTML = `
@@ -268,7 +287,7 @@
                     const batchId = farm.id.replace(/-/g, '');
                     const hasGrowth = farm.growth_records && farm.growth_records.length > 0;
                     
-                    // 取得植物類型（如果沒有則預設為其他）
+                    // 取得植物類型和大小
                     const plantType = farm.plant_type || '其他';
                     const plantSize = farm.plant_size || 'medium';
                     
@@ -281,11 +300,7 @@
                     );
                     
                     // 大小顯示文字
-                    const sizeText = {
-                        'small': '🌱 小',
-                        'medium': '🌿 中',
-                        'large': '🌳 大'
-                    }[plantSize] || '🌿 中';
+                    const sizeDisplay = SIZE_TEXT[plantSize] || '🌿 中';
                     
                     return `
                         <div class="card">
@@ -296,7 +311,7 @@
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <span class="font-black text-green-700">${farm.batch_number}</span>
                                         <span class="text-xs bg-green-100 px-2 py-0.5 rounded-full text-green-800">${farm.plant_name || '未命名'}</span>
-                                        <span class="text-xs bg-blue-100 px-2 py-0.5 rounded-full text-blue-800">${sizeText}</span>
+                                        <span class="text-xs bg-blue-100 px-2 py-0.5 rounded-full text-blue-800">${sizeDisplay}</span>
                                     </div>
                                     
                                     <div class="mt-2 space-y-1">
@@ -316,15 +331,16 @@
                                             <span>${formatDate(farm.in_date)}</span>
                                         </div>
                                         
-                                        <!-- 碳吸收計算明細 -->
+                                        <!-- 碳吸收計算顯示 -->
                                         ${carbonCalc ? `
                                             <div class="mt-2 bg-blue-50 rounded-lg p-2">
-                                                <div class="text-[10px] text-blue-800 font-medium flex items-center gap-1">
-                                                    <span>🌱 碳吸收計算</span>
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-xs font-medium text-blue-800">🌱 碳吸收</span>
                                                     <span class="info-tooltip">
-                                                        <span class="text-blue-400">ⓘ</span>
+                                                        <span class="text-blue-400 text-xs">ⓘ 詳細</span>
                                                         <span class="tooltip-text !bg-blue-900">
                                                             <strong>📊 計算明細</strong><br>
+                                                            植物類型: ${carbonCalc.plantType}<br>
                                                             基礎係數: ${carbonCalc.baseFactor} kg/月<br>
                                                             大小倍率: ${carbonCalc.sizeMultiplier}x<br>
                                                             最終係數: ${carbonCalc.finalFactor} kg/月<br>
@@ -334,8 +350,8 @@
                                                         </span>
                                                     </span>
                                                 </div>
-                                                <div class="text-sm font-bold text-blue-700">
-                                                    吸收 ${carbonCalc.value.toFixed(2)} kg CO2
+                                                <div class="text-lg font-bold text-blue-700">
+                                                    ${carbonCalc.value} kg CO2
                                                 </div>
                                             </div>
                                         ` : ''}
@@ -371,14 +387,12 @@
                                         <div class="space-y-3 pt-1">
                                             ${farm.growth_records.map(g => `
                                                 <div class="bg-gray-50 rounded-xl p-3">
-                                                    <div class="flex justify-between items-start">
-                                                        <div class="text-xs font-medium text-gray-600">
-                                                            ${formatDate(g.record_date)}
-                                                        </div>
+                                                    <div class="text-xs font-medium text-gray-600 mb-1">
+                                                        ${formatDate(g.record_date)}
                                                     </div>
                                                     
                                                     ${g.notes ? `
-                                                        <div class="text-sm mt-1 text-gray-700">
+                                                        <div class="text-sm text-gray-700">
                                                             ${g.notes}
                                                         </div>
                                                     ` : ''}
@@ -402,7 +416,7 @@
                                 <div class="mt-2 pt-2 border-t text-xs">
                                     <span class="text-gray-400">📦 最近出貨:</span>
                                     <span class="ml-2 text-purple-600">
-                                        ${farm.shipments.slice(0, 2).map(s => `${s.shipment_date} ${s.quantity}株`).join('、')}
+                                        ${farm.shipments.slice(0, 2).map(s => `${formatDate(s.shipment_date)} ${s.quantity}株`).join('、')}
                                         ${farm.shipments.length > 2 ? '...' : ''}
                                     </span>
                                 </div>
@@ -412,10 +426,14 @@
                 }).join('');
                 
             } catch (e) {
-                console.error(e);
-                document.getElementById('batches-container').innerHTML = `
-                    <div class="bg-white rounded-2xl p-8 text-center text-red-400">
-                        ❌ 載入失敗，請檢查網路
+                console.error('載入失敗:', e);
+                container.innerHTML = `
+                    <div class="bg-red-50 p-6 rounded-2xl text-center">
+                        <p class="text-red-600 font-bold mb-2">❌ 載入失敗</p>
+                        <p class="text-xs text-gray-500 mb-3">${e.message}</p>
+                        <button onclick="loadData()" class="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm">
+                            重新嘗試
+                        </button>
                     </div>
                 `;
             }
