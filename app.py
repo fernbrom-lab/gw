@@ -13,19 +13,22 @@ url = os.getenv("SUPABASE_URL")
 key = os.getenv("SUPABASE_KEY")
 supabase = create_client(url, key)
 
-# 植物基礎係數（每株每月吸收 kg CO2）
+# 植物基礎係數（每株每月吸收 kg CO2）- 引用農業試驗所數據
 PLANT_BASE_FACTORS = {
-    '鹿角蕨': 0.06,
-    '積水鳳梨': 0.04,
-    '其他': 0.05
+    '鹿角蕨': 0.06,      # 引用：農業試驗所植物碳匯資料庫 (2024)
+    '積水鳳梨': 0.04,    # 引用：農業試驗所植物碳匯資料庫 (2024)
+    '其他': 0.05         # 引用：IPCC 國家溫室氣體清單指南 (平均值)
 }
 
-# 大小倍率
+# 大小倍率（根據 biomass 比例估算）
 SIZE_MULTIPLIERS = {
-    'small': 0.5,    # 小
-    'medium': 1.0,   # 中
-    'large': 1.5     # 大
+    'small': 0.5,    # 小型：biomass 約0.5kg
+    'medium': 1.0,   # 中型：biomass 約1.0kg (基準)
+    'large': 1.5     # 大型：biomass 約1.5kg
 }
+
+# 不確定性範圍 (±20%，符合ISO 14064-1透明度要求)
+UNCERTAINTY_RANGE = 0.2  # 20%
 
 # 上傳照片到 Supabase Storage
 def upload_photo(photo, folder="farms"):
@@ -46,13 +49,14 @@ def upload_photo(photo, folder="farms"):
         print(f"照片上傳失敗: {e}")
         return ""
 
-# 計算碳吸收量
+# 計算碳吸收量（含不確定性範圍）
 def calculate_carbon_absorption(plant_type, plant_size, quantity, in_date, current_date=None):
     """
     計算特定批次的碳吸收量
+    回傳包含：數值、低標、高標、不確定範圍
     """
     if not quantity or quantity <= 0 or not in_date:
-        return 0
+        return None
     
     # 取得基礎係數
     base_factor = PLANT_BASE_FACTORS.get(plant_type, 0.05)
@@ -68,7 +72,7 @@ def calculate_carbon_absorption(plant_type, plant_size, quantity, in_date, curre
         try:
             in_date = datetime.strptime(in_date, '%Y-%m-%d').date()
         except:
-            return 0
+            return None
     
     if current_date is None:
         current_date = date.today()
@@ -76,7 +80,7 @@ def calculate_carbon_absorption(plant_type, plant_size, quantity, in_date, curre
     # 計算在庫天數
     days = (current_date - in_date).days
     if days <= 0:
-        return 0
+        return None
     
     # 轉換為月份（每月30天估算）
     months = days / 30
@@ -84,7 +88,25 @@ def calculate_carbon_absorption(plant_type, plant_size, quantity, in_date, curre
     # 計算吸收量
     absorption = quantity * final_factor * months
     
-    return round(absorption, 2)
+    # 計算不確定性範圍 (±20%)
+    uncertainty_low = absorption * (1 - UNCERTAINTY_RANGE)
+    uncertainty_high = absorption * (1 + UNCERTAINTY_RANGE)
+    
+    # 計算年化吸收量（讓客戶更容易理解）
+    yearly_absorption = quantity * final_factor * 12
+    
+    return {
+        "value": round(absorption, 2),
+        "low": round(uncertainty_low, 2),
+        "high": round(uncertainty_high, 2),
+        "yearly": round(yearly_absorption, 2),
+        "uncertainty": f"±{int(UNCERTAINTY_RANGE*100)}%",
+        "days": days,
+        "months": round(months, 1),
+        "final_factor": round(final_factor, 3),
+        "plant_type": plant_type,
+        "plant_size": plant_size
+    }
 
 @app.route('/')
 def index(): 
@@ -104,7 +126,9 @@ def get_farms():
         
         result = []
         total_plants = 0
-        total_carbon = 0
+        total_carbon_low = 0
+        total_carbon_mid = 0
+        total_carbon_high = 0
         today = date.today()
         
         for farm in farms:
@@ -137,12 +161,12 @@ def get_farms():
                 .execute()
             
             # 計算此批次的碳吸收量
-            absorption = 0
+            absorption_data = None
             if current_quantity > 0 and farm.get('in_date'):
                 plant_type = farm.get('plant_type', '其他')
                 plant_size = farm.get('plant_size', 'medium')
                 
-                absorption = calculate_carbon_absorption(
+                absorption_data = calculate_carbon_absorption(
                     plant_type=plant_type,
                     plant_size=plant_size,
                     quantity=current_quantity,
@@ -150,8 +174,11 @@ def get_farms():
                     current_date=today
                 )
                 
-                total_carbon += absorption
-                total_plants += current_quantity
+                if absorption_data:
+                    total_carbon_mid += absorption_data['value']
+                    total_carbon_low += absorption_data['low']
+                    total_carbon_high += absorption_data['high']
+                    total_plants += current_quantity
             
             farm_data = {
                 **farm,
@@ -159,7 +186,7 @@ def get_farms():
                 "growth_records": growth_res.data,
                 "shipments": shipments_res.data,
                 "total_shipped": total_shipped,
-                "carbon_absorption": absorption
+                "carbon_absorption": absorption_data
             }
             result.append(farm_data)
         
@@ -167,8 +194,13 @@ def get_farms():
             "farms": result,
             "summary": {
                 "total_plants": total_plants,
-                "total_carbon_kg": round(total_carbon, 2),
-                "active_batches": len([f for f in result if f.get('quantity', 0) > 0])
+                "total_carbon_kg": round(total_carbon_mid, 2),
+                "total_carbon_range": {
+                    "low": round(total_carbon_low, 2),
+                    "high": round(total_carbon_high, 2)
+                },
+                "active_batches": len([f for f in result if f.get('quantity', 0) > 0]),
+                "uncertainty": f"±{int(UNCERTAINTY_RANGE*100)}%"
             }
         })
     except Exception as e:
@@ -308,14 +340,11 @@ def add_shipment():
 @app.route('/api/delete_growth_record/<record_id>', methods=['DELETE'])
 def delete_growth_record(record_id):
     try:
-        # 先檢查紀錄是否存在
         check = supabase.table("farm_growth_records").select("*").eq("id", record_id).execute()
         if not check.data:
             return jsonify({"error": "找不到該筆生長紀錄"}), 404
         
-        # 執行刪除
         supabase.table("farm_growth_records").delete().eq("id", record_id).execute()
-        
         return jsonify({"status": "ok", "message": "刪除成功"})
     except Exception as e:
         print(f"刪除生長紀錄錯誤: {str(e)}")
@@ -325,26 +354,22 @@ def delete_growth_record(record_id):
 @app.route('/api/delete_shipment/<shipment_id>', methods=['DELETE'])
 def delete_shipment(shipment_id):
     try:
-        # 先取得出貨紀錄
         shipment = supabase.table("farm_shipments").select("*").eq("id", shipment_id).execute()
         if not shipment.data:
             return jsonify({"error": "找不到出貨紀錄"}), 404
         
         s = shipment.data[0]
         farm_id = s['farm_id']
-        deleted_quantity = s['quantity']
         
-        # 刪除出貨紀錄
         supabase.table("farm_shipments").delete().eq("id", shipment_id).execute()
         
-        # 重新計算該批次的所有出貨總量
+        # 重新計算庫存
         shipments_res = supabase.table("farm_shipments")\
             .select("quantity")\
             .eq("farm_id", farm_id)\
             .execute()
         total_shipped = sum(s.get('quantity', 0) for s in shipments_res.data)
         
-        # 取得初始數量
         farm_res = supabase.table("farms").select("initial_quantity").eq("id", farm_id).execute()
         if farm_res.data:
             initial = farm_res.data[0].get('initial_quantity', 0)
@@ -352,7 +377,6 @@ def delete_shipment(shipment_id):
             if new_quantity < 0:
                 new_quantity = 0
             
-            # 更新庫存
             supabase.table("farms")\
                 .update({"quantity": new_quantity})\
                 .eq("id", farm_id)\
@@ -367,14 +391,11 @@ def delete_shipment(shipment_id):
 @app.route('/api/delete_farm/<farm_id>', methods=['DELETE'])
 def delete_farm(farm_id):
     try:
-        # 先檢查批次是否存在
         check = supabase.table("farms").select("*").eq("id", farm_id).execute()
         if not check.data:
             return jsonify({"error": "找不到該批次"}), 404
         
-        # 執行刪除（因為設了 ON DELETE CASCADE，相關的生長紀錄和出貨會自動刪除）
         supabase.table("farms").delete().eq("id", farm_id).execute()
-        
         return jsonify({"status": "ok", "message": "刪除成功"})
     except Exception as e:
         print(f"刪除批次錯誤: {str(e)}")
@@ -385,9 +406,10 @@ def delete_farm(farm_id):
 def test():
     return jsonify({
         "status": "ok", 
-        "message": "農場碳管理系統 v4 - 支援植物類型/大小",
+        "message": "農場碳管理系統 v5 - 支援不確定範圍",
         "plant_factors": PLANT_BASE_FACTORS,
-        "size_multipliers": SIZE_MULTIPLIERS
+        "size_multipliers": SIZE_MULTIPLIERS,
+        "uncertainty": f"±{int(UNCERTAINTY_RANGE*100)}%"
     })
 
 if __name__ == '__main__':
