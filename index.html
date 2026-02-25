@@ -128,44 +128,44 @@
             white-space: nowrap;
         }
 
-        /* Logo 和標題置中 */
-        .header-center {
+        /* Logo 在左邊，文字在右邊的標頭 */
+        .header-left {
             display: flex;
-            flex-direction: column;
             align-items: center;
-            justify-content: center;
-            text-align: center;
+            justify-content: flex-start;
+            gap: 1rem;
             margin-bottom: 1.5rem;
+            padding: 0 0.5rem;
         }
 
         .logo {
-            width: 80px;
-            height: 80px;
+            width: 60px;
+            height: 60px;
             object-fit: contain;
-            margin-bottom: 0.5rem;
             filter: drop-shadow(0 4px 8px rgba(0,60,0,0.15));
+            flex-shrink: 0;
         }
 
-        .logo-small {
-            width: 48px;
-            height: 48px;
+        .title-group {
+            display: flex;
+            flex-direction: column;
         }
 
         .title-main {
-            font-size: 2.25rem;
+            font-size: 2rem;
             font-weight: 900;
             color: #1e4a2a;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.02em;
             line-height: 1.2;
-            text-shadow: 2px 2px 4px rgba(0,30,0,0.1);
+            text-shadow: 1px 1px 2px rgba(0,30,0,0.1);
         }
 
         .title-sub {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             color: #2e6b3e;
             opacity: 0.9;
-            margin-top: 0.25rem;
-            letter-spacing: 0.02em;
+            margin-top: 0.1rem;
+            letter-spacing: 0.01em;
         }
 
         .stat-green {
@@ -195,16 +195,18 @@
 </head>
 <body class="p-4">
     <div class="max-w-lg mx-auto">
-        <!-- 標頭 - 置中版本 -->
-        <div class="header-center">
+        <!-- 標頭 - Logo 在左邊，文字在右邊 -->
+        <div class="header-left">
             <img src="/logo.png" alt="蕨積" class="logo" 
                  onerror="this.onerror=null; this.style.display='none'; console.log('Logo 載入失敗')">
-            <h1 class="title-main">
-                蕨積碳足跡
-            </h1>
-            <p class="title-sub">
-                看見每一天的綠色貢獻
-            </p>
+            <div class="title-group">
+                <h1 class="title-main">
+                    蕨積碳足跡
+                </h1>
+                <p class="title-sub">
+                    看見每一天的綠色貢獻
+                </p>
+            </div>
         </div>
 
         <!-- 統計卡片 -->
