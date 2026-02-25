@@ -3,56 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>農場碳管理</title>
+    <title>農場碳管理 - 看見植物每一天的貢獻</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
         body { 
             font-family: 'Noto Sans TC', sans-serif; 
-            background-color: #f5f5f4;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-attachment: fixed;
             -webkit-font-smoothing: antialiased;
         }
         
         .card {
-            background: white;
-            border-radius: 1.5rem;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-            padding: 1rem;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 1.25rem;
             margin-bottom: 1rem;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: transform 0.2s;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
         }
         
         .growth-content {
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.3s ease-out;
+            transition: max-height 0.4s ease-out;
         }
         
         .growth-content.expanded {
-            max-height: 500px;
+            max-height: 800px;
         }
         
         .photo-container {
             aspect-ratio: 1/1;
             overflow: hidden;
-            border-radius: 1rem;
-            background-color: #f3f4f6;
+            border-radius: 1.25rem;
+            background: linear-gradient(45deg, #f3f4f6, #e5e7eb);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
         }
         
         .photo-container img {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            transition: transform 0.3s;
+        }
+        
+        .photo-container:hover img {
+            transform: scale(1.05);
         }
         
         .stat-card {
-            background: white;
-            border-radius: 1rem;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 1.25rem;
             padding: 1rem;
             text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255,255,255,0.3);
         }
         
-        /* 計算說明工具提示 */
         .info-tooltip {
             position: relative;
             display: inline-block;
@@ -61,22 +76,24 @@
         
         .info-tooltip .tooltip-text {
             visibility: hidden;
-            width: 280px;
-            background-color: #1e293b;
+            width: 300px;
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
             color: #fff;
             text-align: left;
-            border-radius: 0.75rem;
+            border-radius: 1rem;
             padding: 1rem;
             position: absolute;
-            z-index: 1;
-            bottom: 125%;
+            z-index: 10;
+            bottom: 150%;
             left: 50%;
             transform: translateX(-50%);
             opacity: 0;
             transition: opacity 0.3s;
             font-size: 0.75rem;
             font-weight: normal;
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.1);
         }
         
         .info-tooltip:hover .tooltip-text {
@@ -88,33 +105,44 @@
             visibility: visible;
             opacity: 1;
         }
+        
+        .progress-bar {
+            transition: width 1s ease-in-out;
+            background: linear-gradient(90deg, #10b981, #34d399);
+        }
+        
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 2rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
     </style>
 </head>
-<body class="p-3">
+<body class="p-4">
     <div class="max-w-lg mx-auto">
         <!-- 標頭 -->
-        <header class="mb-4 flex items-center justify-between">
-            <h1 class="text-2xl font-black text-green-800">
-                🌱 農場碳管理
+        <header class="mb-6 text-center text-white">
+            <h1 class="text-3xl font-black tracking-tight">
+                🌱 植物碳足跡
             </h1>
-            <div class="text-xs text-gray-400">
-                即時更新中
-            </div>
+            <p class="text-sm opacity-90 mt-1">看見每一天的綠色貢獻</p>
         </header>
 
         <!-- 統計卡片 -->
-        <div class="grid grid-cols-3 gap-2 mb-4">
+        <div class="grid grid-cols-3 gap-3 mb-6">
             <!-- 庫存 -->
             <div class="stat-card">
-                <div class="text-xl font-black text-green-600" id="total-plants">0</div>
+                <div class="text-2xl font-black text-green-600" id="total-plants">0</div>
                 <div class="text-[10px] text-gray-500 flex items-center justify-center gap-1">
-                    庫存(株)
+                    正在照顧
                     <span class="info-tooltip">
-                        <span class="text-gray-400 text-[12px]">ⓘ</span>
+                        <span class="text-gray-400">ⓘ</span>
                         <span class="tooltip-text">
-                            <strong>📊 目前庫存</strong><br>
-                            所有批次「目前數量」的總和<br>
-                            = 初始進貨 - 已出貨
+                            <strong>🌱 目前照顧中</strong><br>
+                            所有還未出貨的植物數量<br>
+                            每一株都在為地球努力
                         </span>
                     </span>
                 </div>
@@ -122,22 +150,21 @@
             
             <!-- 碳吸收 -->
             <div class="stat-card">
-                <div class="text-xl font-black text-blue-600" id="total-carbon">0</div>
+                <div class="text-2xl font-black text-blue-600" id="total-carbon">0</div>
                 <div class="text-[10px] text-gray-500 flex items-center justify-center gap-1">
-                    碳吸收(kg)
+                    累積吸收
                     <span class="info-tooltip">
-                        <span class="text-gray-400 text-[12px]">ⓘ</span>
+                        <span class="text-gray-400">ⓘ</span>
                         <span class="tooltip-text">
-                            <strong>🌱 碳吸收計算基礎</strong><br>
-                            每株每月基礎吸收量：<br>
+                            <strong>🌍 碳吸收計算</strong><br>
+                            每株每月基礎吸收：<br>
                             • 鹿角蕨：0.06 kg<br>
                             • 積水鳳梨：0.04 kg<br>
-                            • 其他植物：0.05 kg<br><br>
+                            • 其他：0.05 kg<br><br>
                             <strong>大小倍率：</strong><br>
-                            • 小 (3吋以下)：0.5x<br>
-                            • 中 (4-6吋)：1.0x<br>
-                            • 大 (7吋以上)：1.5x<br><br>
-                            公式：數量 × 基礎係數 × 大小倍率 × 在庫月份
+                            小(0.5x) 中(1.0x) 大(1.5x)<br><br>
+                            ⚠️ 不確定範圍 ±20%<br>
+                            (符合ISO 14064-1透明度要求)
                         </span>
                     </span>
                 </div>
@@ -145,14 +172,15 @@
             
             <!-- 進行中 -->
             <div class="stat-card">
-                <div class="text-xl font-black text-purple-600" id="active-batches">0</div>
+                <div class="text-2xl font-black text-purple-600" id="active-batches">0</div>
                 <div class="text-[10px] text-gray-500 flex items-center justify-center gap-1">
                     進行中
                     <span class="info-tooltip">
-                        <span class="text-gray-400 text-[12px]">ⓘ</span>
+                        <span class="text-gray-400">ⓘ</span>
                         <span class="tooltip-text">
                             <strong>📦 進行中批次</strong><br>
-                            目前庫存大於 0 的批次數量
+                            目前還有庫存的植物批次<br>
+                            每個批次都有自己的成長故事
                         </span>
                     </span>
                 </div>
@@ -160,14 +188,14 @@
         </div>
 
         <!-- 批次列表 -->
-        <div id="batches-container" class="space-y-3">
-            <div class="text-center py-4 text-gray-400">載入中...</div>
+        <div id="batches-container" class="space-y-4">
+            <div class="text-center py-8 text-white/70">🌱 載入植物故事...</div>
         </div>
         
         <!-- 頁尾說明 -->
-        <div class="mt-6 text-[10px] text-gray-400 text-center border-t pt-4">
-            <p>🌱 碳吸收計算依據植物類型、大小、在庫天數自動估算</p>
-            <p>係數來源：參考農業試驗所植物碳匯研究數據</p>
+        <div class="mt-8 text-[10px] text-white/60 text-center border-t border-white/20 pt-4">
+            <p>🌱 每一天的養護，都在增加對地球的貢獻</p>
+            <p class="mt-1">係數來源：農業部農業試驗所 | 不確定範圍 ±20% (ISO 14064-1)</p>
         </div>
     </div>
 
@@ -198,45 +226,45 @@
             if (!dateStr) return '無日期';
             try {
                 const d = new Date(dateStr);
-                return `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`;
+                const year = d.getFullYear();
+                const month = (d.getMonth() + 1).toString().padStart(2, '0');
+                const day = d.getDate().toString().padStart(2, '0');
+                return `${year}/${month}/${day}`;
             } catch {
                 return dateStr;
             }
         }
 
-        // 計算碳吸收量
-        function calculateCarbon(plantType, plantSize, quantity, inDate) {
-            if (!quantity || quantity <= 0 || !inDate) return null;
+        // 計算在庫天數
+        function calculateDays(inDate) {
+            if (!inDate) return 0;
+            try {
+                const today = new Date();
+                const inDateObj = new Date(inDate);
+                const days = Math.floor((today - inDateObj) / (1000 * 60 * 60 * 24));
+                return days > 0 ? days : 0;
+            } catch {
+                return 0;
+            }
+        }
+
+        // 計算碳吸收量（前端備用，但主要用後端回傳的數據）
+        function formatCarbon(data) {
+            if (!data) return null;
             
-            // 取得基礎係數
-            const baseFactor = PLANT_BASE_FACTORS[plantType] || 0.05;
+            const days = data.days || 0;
+            const months = data.months || 0;
+            const value = data.value || 0;
+            const low = data.low || 0;
+            const high = data.high || 0;
             
-            // 取得大小倍率
-            const sizeMultiplier = SIZE_MULTIPLIERS[plantSize] || 1.0;
-            
-            // 計算在庫天數
-            const today = new Date();
-            const inDateObj = new Date(inDate);
-            const days = Math.floor((today - inDateObj) / (1000 * 60 * 60 * 24));
-            
-            if (days <= 0) return null;
-            
-            // 轉換為月份（每月30天）
-            const months = (days / 30).toFixed(1);
-            
-            // 計算吸收量
-            const finalFactor = baseFactor * sizeMultiplier;
-            const absorption = quantity * finalFactor * months;
+            // 計算年化目標
+            const yearTarget = value * (365 / (days || 365));
             
             return {
-                value: absorption.toFixed(2),
-                baseFactor: baseFactor,
-                sizeMultiplier: sizeMultiplier,
-                finalFactor: finalFactor.toFixed(3),
-                months: months,
-                days: days,
-                plantType: plantType,
-                plantSize: plantSize
+                ...data,
+                yearTarget: Math.round(yearTarget),
+                progress: Math.min(100, Math.round((days / 365) * 100))
             };
         }
 
@@ -248,10 +276,10 @@
             if (content) {
                 if (content.classList.contains('expanded')) {
                     content.classList.remove('expanded');
-                    if (icon) icon.textContent = '▼';
+                    if (icon) icon.textContent = '▼ 查看故事';
                 } else {
                     content.classList.add('expanded');
-                    if (icon) icon.textContent = '▲';
+                    if (icon) icon.textContent = '▲ 收起故事';
                 }
             }
         }
@@ -264,20 +292,23 @@
                 const res = await fetch('/api/farms');
                 
                 if (!res.ok) {
-                    throw new Error(`HTTP error! status: ${res.status}`);
+                    throw new Error(`載入失敗 (${res.status})`);
                 }
                 
                 const data = await res.json();
                 
                 // 更新統計
                 document.getElementById('total-plants').textContent = data.summary.total_plants;
-                document.getElementById('total-carbon').textContent = data.summary.total_carbon_kg;
+                document.getElementById('total-carbon').textContent = 
+                    `${data.summary.total_carbon_kg} kg`;
                 document.getElementById('active-batches').textContent = data.summary.active_batches;
                 
                 if (data.farms.length === 0) {
                     container.innerHTML = `
-                        <div class="bg-white rounded-2xl p-8 text-center text-gray-400">
-                            📭 目前沒有植物資料
+                        <div class="bg-white/90 backdrop-blur rounded-3xl p-12 text-center">
+                            <div class="text-6xl mb-4">🌱</div>
+                            <p class="text-gray-600">還沒有植物故事</p>
+                            <p class="text-xs text-gray-400 mt-2">等待第一株植物入庫</p>
                         </div>
                     `;
                     return;
@@ -291,117 +322,130 @@
                     const plantType = farm.plant_type || '其他';
                     const plantSize = farm.plant_size || 'medium';
                     
-                    // 計算碳吸收
-                    const carbonCalc = calculateCarbon(
-                        plantType, 
-                        plantSize, 
-                        farm.quantity, 
-                        farm.in_date
-                    );
+                    // 碳吸收數據
+                    const carbon = farm.carbon_absorption;
+                    const days = carbon?.days || calculateDays(farm.in_date);
+                    const months = carbon?.months || (days / 30).toFixed(1);
                     
-                    // 大小顯示文字
+                    // 大小顯示
                     const sizeDisplay = SIZE_TEXT[plantSize] || '🌿 中';
+                    
+                    // 計算進度條寬度 (目標一年)
+                    const progressPercent = Math.min(100, Math.round((days / 365) * 100));
                     
                     return `
                         <div class="card">
-                            <!-- 主要資訊列：左文字 + 右照片 -->
-                            <div class="flex gap-3">
-                                <!-- 左側：批次資訊 -->
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <span class="font-black text-green-700">${farm.batch_number}</span>
-                                        <span class="text-xs bg-green-100 px-2 py-0.5 rounded-full text-green-800">${farm.plant_name || '未命名'}</span>
-                                        <span class="text-xs bg-blue-100 px-2 py-0.5 rounded-full text-blue-800">${sizeDisplay}</span>
+                            <!-- 主要資訊列 -->
+                            <div class="flex gap-4">
+                                <!-- 左側資訊 -->
+                                <div class="flex-1">
+                                    <!-- 標籤列 -->
+                                    <div class="flex items-center gap-2 flex-wrap mb-2">
+                                        <span class="font-black text-lg text-green-700">${farm.batch_number}</span>
+                                        <span class="badge bg-green-100 text-green-800">${farm.plant_name || '未命名'}</span>
+                                        <span class="badge bg-blue-100 text-blue-800">${sizeDisplay}</span>
                                     </div>
                                     
-                                    <div class="mt-2 space-y-1">
-                                        <div class="flex items-center text-sm">
-                                            <span class="text-gray-400 w-14 text-xs">庫存</span>
-                                            <span class="font-bold text-green-600">${farm.quantity}</span>
-                                            <span class="text-xs text-gray-400 ml-2">/ 初始 ${farm.initial_quantity}</span>
+                                    <!-- 數量資訊 -->
+                                    <div class="grid grid-cols-3 gap-2 mb-3">
+                                        <div>
+                                            <div class="text-[10px] text-gray-400">初始</div>
+                                            <div class="font-bold">${farm.initial_quantity}</div>
                                         </div>
-                                        
-                                        <div class="flex items-center text-xs">
-                                            <span class="text-gray-400 w-14">已出貨</span>
-                                            <span class="text-purple-600">${farm.total_shipped || 0}</span>
+                                        <div>
+                                            <div class="text-[10px] text-gray-400">庫存</div>
+                                            <div class="font-bold text-green-600">${farm.quantity}</div>
                                         </div>
-                                        
-                                        <div class="flex items-center text-xs">
-                                            <span class="text-gray-400 w-14">進貨日</span>
-                                            <span>${formatDate(farm.in_date)}</span>
+                                        <div>
+                                            <div class="text-[10px] text-gray-400">已出貨</div>
+                                            <div class="font-bold text-purple-600">${farm.total_shipped || 0}</div>
                                         </div>
-                                        
-                                        <!-- 碳吸收計算顯示 -->
-                                        ${carbonCalc ? `
-                                            <div class="mt-2 bg-blue-50 rounded-lg p-2">
-                                                <div class="flex items-center justify-between">
-                                                    <span class="text-xs font-medium text-blue-800">🌱 碳吸收</span>
-                                                    <span class="info-tooltip">
-                                                        <span class="text-blue-400 text-xs">ⓘ 詳細</span>
-                                                        <span class="tooltip-text !bg-blue-900">
-                                                            <strong>📊 計算明細</strong><br>
-                                                            植物類型: ${carbonCalc.plantType}<br>
-                                                            基礎係數: ${carbonCalc.baseFactor} kg/月<br>
-                                                            大小倍率: ${carbonCalc.sizeMultiplier}x<br>
-                                                            最終係數: ${carbonCalc.finalFactor} kg/月<br>
-                                                            在庫天數: ${carbonCalc.days} 天<br>
-                                                            在庫月份: ${carbonCalc.months} 月<br>
-                                                            公式: ${farm.quantity} × ${carbonCalc.finalFactor} × ${carbonCalc.months}
-                                                        </span>
-                                                    </span>
-                                                </div>
-                                                <div class="text-lg font-bold text-blue-700">
-                                                    ${carbonCalc.value} kg CO2
-                                                </div>
-                                            </div>
-                                        ` : ''}
                                     </div>
+                                    
+                                    <!-- 時間軸進度條 -->
+                                    <div class="mt-2 mb-3">
+                                        <div class="flex justify-between text-[10px] text-gray-500 mb-1">
+                                            <span>🌱 進貨: ${formatDate(farm.in_date)}</span>
+                                            <span class="font-bold text-green-600">養護 ${days} 天</span>
+                                        </div>
+                                        <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                                            <div class="progress-bar h-2 rounded-full" 
+                                                 style="width: ${progressPercent}%">
+                                            </div>
+                                        </div>
+                                        <div class="flex justify-between text-[9px] text-gray-400 mt-1">
+                                            <span>開始</span>
+                                            <span>一年目標</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 碳吸收卡片 -->
+                                    ${carbon ? `
+                                        <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-3">
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-xs font-medium text-green-700">🌍 碳吸收貢獻</span>
+                                                <span class="info-tooltip">
+                                                    <span class="text-green-500 text-xs">ⓘ 計算明細</span>
+                                                    <span class="tooltip-text">
+                                                        <strong>📊 ${carbon.days} 天的努力</strong><br><br>
+                                                        基礎係數: ${carbon.final_factor} kg/月<br>
+                                                        在庫月份: ${carbon.months} 月<br>
+                                                        計算: ${farm.quantity} × ${carbon.final_factor} × ${carbon.months}<br><br>
+                                                        <span class="text-green-400">不確定範圍 ±20%</span><br>
+                                                        (${carbon.low} - ${carbon.high} kg)
+                                                    </span>
+                                                </span>
+                                            </div>
+                                            <div class="flex items-end gap-2 mt-1">
+                                                <span class="text-2xl font-black text-green-700">${carbon.value}</span>
+                                                <span class="text-xs text-gray-500 mb-1">kg CO2</span>
+                                            </div>
+                                            <div class="flex justify-between text-[9px] text-gray-400 mt-1">
+                                                <span>最低 ${carbon.low}</span>
+                                                <span>最高 ${carbon.high}</span>
+                                            </div>
+                                        </div>
+                                    ` : ''}
                                 </div>
                                 
-                                <!-- 右側：主要照片 -->
-                                <div class="w-24 h-24 flex-shrink-0">
+                                <!-- 右側照片 -->
+                                <div class="w-28 flex-shrink-0">
                                     <div class="photo-container">
-                                        <img src="${farm.photo_url || 'https://via.placeholder.com/200?text=無照片'}" 
+                                        <img src="${farm.photo_url || 'https://via.placeholder.com/200?text=📸'}" 
                                              onerror="this.src='https://via.placeholder.com/200?text=❌'"
-                                             alt="批次照片"
+                                             alt="植物照片"
                                              class="w-full h-full object-cover">
                                     </div>
                                 </div>
                             </div>
                             
-                            <!-- 生長紀錄按鈕和展開區域 -->
+                            <!-- 生長紀錄區塊 -->
                             ${hasGrowth ? `
-                                <div class="mt-3 border-t pt-2">
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-xs font-medium text-gray-500">
-                                            📸 生長紀錄 ${farm.growth_records.length} 筆
+                                <div class="mt-4 border-t pt-3">
+                                    <button onclick="toggleGrowth('${batchId}')" 
+                                            class="w-full flex items-center justify-between text-sm text-gray-600">
+                                        <span class="font-medium">📸 生長故事 (${farm.growth_records.length})</span>
+                                        <span id="icon-${batchId}" class="text-xs bg-gray-100 px-3 py-1 rounded-full">
+                                            ▼ 查看故事
                                         </span>
-                                        <button onclick="toggleGrowth('${batchId}')" 
-                                                class="text-xs bg-gray-100 px-3 py-1.5 rounded-full flex items-center gap-1 active:bg-gray-200">
-                                            <span id="icon-${batchId}">▼</span> 查看
-                                        </button>
-                                    </div>
+                                    </button>
                                     
-                                    <!-- 展開內容 -->
-                                    <div id="growth-${batchId}" class="growth-content mt-2">
-                                        <div class="space-y-3 pt-1">
+                                    <div id="growth-${batchId}" class="growth-content mt-3">
+                                        <div class="space-y-3">
                                             ${farm.growth_records.map(g => `
                                                 <div class="bg-gray-50 rounded-xl p-3">
-                                                    <div class="text-xs font-medium text-gray-600 mb-1">
+                                                    <div class="text-xs font-medium text-gray-500 mb-1">
                                                         ${formatDate(g.record_date)}
                                                     </div>
-                                                    
                                                     ${g.notes ? `
                                                         <div class="text-sm text-gray-700">
                                                             ${g.notes}
                                                         </div>
                                                     ` : ''}
-                                                    
                                                     ${g.photo_url ? `
                                                         <div class="mt-2">
                                                             <img src="${g.photo_url}" 
-                                                                 onerror="this.src='https://via.placeholder.com/400?text=照片載入失敗'"
-                                                                 class="w-full rounded-lg max-h-48 object-cover">
+                                                                 class="w-full rounded-lg max-h-40 object-cover">
                                                         </div>
                                                     ` : ''}
                                                 </div>
@@ -413,10 +457,12 @@
                             
                             <!-- 出貨紀錄摘要 -->
                             ${farm.shipments && farm.shipments.length > 0 ? `
-                                <div class="mt-2 pt-2 border-t text-xs">
-                                    <span class="text-gray-400">📦 最近出貨:</span>
-                                    <span class="ml-2 text-purple-600">
-                                        ${farm.shipments.slice(0, 2).map(s => `${formatDate(s.shipment_date)} ${s.quantity}株`).join('、')}
+                                <div class="mt-3 pt-2 border-t text-xs text-gray-500">
+                                    <span class="text-gray-400">📦 已出貨:</span>
+                                    <span class="ml-2">
+                                        ${farm.shipments.slice(0, 2).map(s => 
+                                            `${formatDate(s.shipment_date)} ${s.quantity}株`
+                                        ).join('、')}
                                         ${farm.shipments.length > 2 ? '...' : ''}
                                     </span>
                                 </div>
@@ -428,10 +474,12 @@
             } catch (e) {
                 console.error('載入失敗:', e);
                 container.innerHTML = `
-                    <div class="bg-red-50 p-6 rounded-2xl text-center">
-                        <p class="text-red-600 font-bold mb-2">❌ 載入失敗</p>
-                        <p class="text-xs text-gray-500 mb-3">${e.message}</p>
-                        <button onclick="loadData()" class="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm">
+                    <div class="bg-white/90 backdrop-blur rounded-3xl p-8 text-center">
+                        <div class="text-4xl mb-3">😢</div>
+                        <p class="text-red-600 font-bold">載入失敗</p>
+                        <p class="text-xs text-gray-500 mt-2">${e.message}</p>
+                        <button onclick="loadData()" 
+                                class="mt-4 px-6 py-2 bg-green-600 text-white rounded-full text-sm">
                             重新嘗試
                         </button>
                     </div>
@@ -442,8 +490,8 @@
         // 初始化
         window.onload = loadData;
         
-        // 每分鐘自動更新
-        setInterval(loadData, 60000);
+        // 每30秒自動更新（讓時間軸有感）
+        setInterval(loadData, 30000);
     </script>
 </body>
 </html>
