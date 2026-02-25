@@ -70,8 +70,8 @@
         <div class="flex justify-between items-center mb-4">
             <h1 class="text-2xl font-black text-green-800">🌿 農場碳管理後台</h1>
             <div class="flex gap-2">
-                <a href="/" target="_blank" class="text-sm bg-gray-200 px-3 py-1.5 rounded-full">前台</a>
-                <button onclick="loadBatches()" class="text-sm bg-blue-100 px-3 py-1.5 rounded-full">🔄 重新整理</button>
+                <a href="/" target="_blank" class="text-sm bg-gray-200 px-3 py-1.5 rounded-full hover:bg-gray-300">前台</a>
+                <button onclick="loadBatches()" class="text-sm bg-blue-100 px-3 py-1.5 rounded-full hover:bg-blue-200">🔄 重新整理</button>
             </div>
         </div>
         
@@ -98,7 +98,7 @@
 
         <!-- 批次列表 -->
         <div id="batches-list" class="space-y-3">
-            載入中...
+            <div class="text-center py-4 text-gray-400">載入中...</div>
         </div>
     </div>
 
@@ -107,43 +107,32 @@
         <div class="modal-content bg-white p-6 rounded-2xl max-w-md w-full">
             <h2 class="text-xl font-bold mb-4">新增植物批次</h2>
             <form id="addFarmForm" class="space-y-3">
-                <!-- 基本資訊 -->
                 <input type="text" name="batch_number" placeholder="批號 *" required class="w-full border p-3 rounded-xl">
                 <input type="text" name="plant_name" placeholder="品種名稱" class="w-full border p-3 rounded-xl">
                 
-                <!-- 植物類型 -->
                 <select name="plant_type" class="w-full border p-3 rounded-xl">
                     <option value="鹿角蕨">🦌 鹿角蕨 (0.06 kg/月)</option>
                     <option value="積水鳳梨">🍍 積水鳳梨 (0.04 kg/月)</option>
                     <option value="其他" selected>🌿 其他植物 (0.05 kg/月)</option>
                 </select>
                 
-                <!-- 植物大小 -->
                 <select name="plant_size" class="w-full border p-3 rounded-xl">
-                    <option value="small">🌱 小 (3吋以下 / 葉展<20cm) x0.5</option>
-                    <option value="medium" selected>🌿 中 (4-6吋 / 葉展20-40cm) x1.0</option>
-                    <option value="large">🌳 大 (7吋以上 / 葉展>40cm) x1.5</option>
+                    <option value="small">🌱 小 (3吋以下) x0.5</option>
+                    <option value="medium" selected>🌿 中 (4-6吋) x1.0</option>
+                    <option value="large">🌳 大 (7吋以上) x1.5</option>
                 </select>
                 
-                <!-- 數量與日期 -->
                 <input type="number" name="quantity" placeholder="初始數量" required class="w-full border p-3 rounded-xl">
                 <input type="date" name="in_date" class="w-full border p-3 rounded-xl">
-                
-                <!-- 供應商與備註 -->
                 <input type="text" name="supplier" placeholder="供應商" class="w-full border p-3 rounded-xl">
                 <textarea name="notes" placeholder="備註" class="w-full border p-3 rounded-xl" rows="2"></textarea>
-                
-                <!-- 照片 -->
                 <input type="file" name="photo" accept="image/*" class="w-full border p-2 rounded-xl">
                 
-                <!-- 計算說明 -->
                 <div class="bg-blue-50 p-3 rounded-xl text-xs text-blue-800">
                     <p class="font-bold mb-1">🌱 碳吸收計算說明</p>
                     <p>吸收量 = 數量 × 基礎係數 × 大小倍率 × 在庫月份</p>
-                    <p class="mt-1">範例: 100株中鹿角蕨在庫3個月 = 100 × 0.06 × 1.0 × 3 = 18 kg</p>
                 </div>
                 
-                <!-- 按鈕 -->
                 <div class="flex gap-2 pt-2">
                     <button type="button" onclick="saveFarm()" class="flex-1 bg-green-600 text-white py-3 rounded-xl hover:bg-green-700">儲存</button>
                     <button type="button" onclick="hideModal('addFarmModal')" class="flex-1 bg-gray-200 py-3 rounded-xl hover:bg-gray-300">取消</button>
@@ -159,7 +148,7 @@
             <form id="growthForm" class="space-y-3">
                 <input type="hidden" id="growth_farm_id" name="farm_id">
                 <input type="date" name="record_date" class="w-full border p-3 rounded-xl" required>
-                <textarea name="notes" placeholder="觀察紀錄 (例如: 長出新葉、澆水、施肥等)" class="w-full border p-3 rounded-xl" rows="3"></textarea>
+                <textarea name="notes" placeholder="觀察紀錄" class="w-full border p-3 rounded-xl" rows="3"></textarea>
                 <input type="file" name="photo" accept="image/*" class="w-full border p-2 rounded-xl">
                 <div class="flex gap-2 pt-2">
                     <button type="button" onclick="saveGrowthRecord()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700">儲存</button>
@@ -216,8 +205,16 @@
 
         // ========== 載入所有批次 ==========
         async function loadBatches() {
+            const container = document.getElementById('batches-list');
+            container.innerHTML = '<div class="text-center py-4">🔄 載入中...</div>';
+            
             try {
                 const res = await fetch('/api/farms');
+                
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                
                 const data = await res.json();
                 
                 // 更新統計
@@ -225,22 +222,18 @@
                 document.getElementById('stat-carbon').textContent = data.summary.total_carbon_kg + ' kg';
                 document.getElementById('stat-batches').textContent = data.summary.active_batches;
                 
-                const container = document.getElementById('batches-list');
-                
                 if (data.farms.length === 0) {
                     container.innerHTML = '<p class="text-center py-10 text-gray-400 bg-white rounded-2xl">尚無資料，點擊上方按鈕新增</p>';
                     return;
                 }
                 
                 container.innerHTML = data.farms.map(farm => {
-                    // 大小顯示文字
                     const sizeText = {
                         'small': '🌱 小',
                         'medium': '🌿 中',
                         'large': '🌳 大'
                     }[farm.plant_size] || '🌿 中';
                     
-                    // 碳吸收顯示
                     const carbonText = farm.carbon_absorption ? 
                         `🌱 吸收 ${farm.carbon_absorption} kg CO2` : 
                         '📊 碳吸收計算中';
@@ -256,7 +249,6 @@
                                         <span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">${sizeText}</span>
                                     </div>
                                     
-                                    <!-- 數量資訊 -->
                                     <div class="grid grid-cols-4 gap-2 mt-2 text-sm">
                                         <div>
                                             <span class="text-gray-400 text-xs">初始</span>
@@ -276,22 +268,10 @@
                                         </div>
                                     </div>
                                     
-                                    <!-- 碳吸收 -->
-                                    <div class="mt-1 text-xs text-blue-600 flex items-center gap-1">
+                                    <div class="mt-1 text-xs text-blue-600">
                                         <span>${carbonText}</span>
-                                        <span class="info-tooltip">
-                                            <span class="text-gray-400">ⓘ</span>
-                                            <span class="tooltip-text">
-                                                <strong>計算明細</strong><br>
-                                                類型: ${farm.plant_type || '其他'}<br>
-                                                大小: ${sizeText}<br>
-                                                數量: ${farm.quantity}株<br>
-                                                在庫天數: 自動計算
-                                            </span>
-                                        </span>
                                     </div>
                                     
-                                    <!-- 供應商/備註 -->
                                     ${farm.supplier ? `<div class="text-xs text-gray-400 mt-1">🏭 ${farm.supplier}</div>` : ''}
                                     ${farm.notes ? `<div class="text-xs text-gray-500 mt-1">📝 ${farm.notes}</div>` : ''}
                                     ${farm.photo_url ? `<a href="${farm.photo_url}" target="_blank" class="text-xs text-blue-500 mt-1 inline-block">📸 查看初始照片</a>` : ''}
@@ -359,8 +339,16 @@
                 }).join('');
                 
             } catch (e) {
-                console.error(e);
-                document.getElementById('batches-list').innerHTML = '<p class="text-center py-10 text-red-500 bg-white rounded-2xl">載入失敗，請檢查網路</p>';
+                console.error('載入失敗:', e);
+                container.innerHTML = `
+                    <div class="bg-red-50 p-6 rounded-2xl text-center">
+                        <p class="text-red-600 font-bold mb-2">❌ 載入失敗</p>
+                        <p class="text-xs text-gray-500 mb-3">${e.message}</p>
+                        <button onclick="loadBatches()" class="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm">
+                            重新嘗試
+                        </button>
+                    </div>
+                `;
             }
         }
 
@@ -380,16 +368,17 @@
                     body: formData
                 });
                 
+                const result = await res.json();
+                
                 if (res.ok) {
                     alert('✅ 新增成功');
                     hideModal('addFarmModal');
                     loadBatches();
                 } else {
-                    const err = await res.json();
-                    alert('❌ 錯誤：' + (err.error || '未知錯誤'));
+                    alert('❌ 錯誤：' + (result.error || '未知錯誤'));
                 }
             } catch (e) {
-                alert('❌ 連線失敗');
+                alert('❌ 連線失敗：' + e.message);
             }
         }
 
@@ -404,16 +393,17 @@
                     body: formData
                 });
                 
+                const result = await res.json();
+                
                 if (res.ok) {
                     alert('✅ 生長紀錄已儲存');
                     hideModal('growthModal');
                     loadBatches();
                 } else {
-                    const err = await res.json();
-                    alert('❌ 錯誤：' + (err.error || '未知錯誤'));
+                    alert('❌ 錯誤：' + (result.error || '未知錯誤'));
                 }
             } catch (e) {
-                alert('❌ 連線失敗');
+                alert('❌ 連線失敗：' + e.message);
             }
         }
 
@@ -435,16 +425,17 @@
                     body: JSON.stringify(data)
                 });
                 
+                const result = await res.json();
+                
                 if (res.ok) {
                     alert('✅ 出貨紀錄已儲存');
                     hideModal('shipmentModal');
                     loadBatches();
                 } else {
-                    const err = await res.json();
-                    alert('❌ 錯誤：' + (err.error || '未知錯誤'));
+                    alert('❌ 錯誤：' + (result.error || '未知錯誤'));
                 }
             } catch (e) {
-                alert('❌ 連線失敗');
+                alert('❌ 連線失敗：' + e.message);
             }
         }
 
@@ -457,14 +448,16 @@
                     method: 'DELETE'
                 });
                 
+                const result = await res.json();
+                
                 if (res.ok) {
                     alert('✅ 刪除成功');
-                    loadBatches();
+                    setTimeout(() => loadBatches(), 300);
                 } else {
-                    alert('❌ 刪除失敗');
+                    alert('❌ 錯誤：' + (result.error || '刪除失敗'));
                 }
             } catch (e) {
-                alert('❌ 連線失敗');
+                alert('❌ 連線失敗：' + e.message);
             }
         }
 
@@ -477,14 +470,16 @@
                     method: 'DELETE'
                 });
                 
+                const result = await res.json();
+                
                 if (res.ok) {
                     alert('✅ 刪除成功');
-                    loadBatches();
+                    setTimeout(() => loadBatches(), 300);
                 } else {
-                    alert('❌ 刪除失敗');
+                    alert('❌ 錯誤：' + (result.error || '刪除失敗'));
                 }
             } catch (e) {
-                alert('❌ 連線失敗');
+                alert('❌ 連線失敗：' + e.message);
             }
         }
 
@@ -497,14 +492,16 @@
                     method: 'DELETE'
                 });
                 
+                const result = await res.json();
+                
                 if (res.ok) {
                     alert('✅ 刪除成功');
-                    loadBatches();
+                    setTimeout(() => loadBatches(), 300);
                 } else {
-                    alert('❌ 刪除失敗');
+                    alert('❌ 錯誤：' + (result.error || '刪除失敗'));
                 }
             } catch (e) {
-                alert('❌ 連線失敗');
+                alert('❌ 連線失敗：' + e.message);
             }
         }
 
