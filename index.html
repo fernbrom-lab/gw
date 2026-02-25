@@ -128,19 +128,32 @@
             white-space: nowrap;
         }
 
-        /* Logo 在左邊，文字在右邊的標頭 */
-        .header-left {
+        /* 標頭 - 三塊統計卡片中間 */
+        .header-center-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 1rem 0 2rem 0;
+            padding: 0.5rem;
+        }
+
+        .logo-title-container {
             display: flex;
             align-items: center;
-            justify-content: flex-start;
+            justify-content: center;
             gap: 1rem;
-            margin-bottom: 1.5rem;
-            padding: 0 0.5rem;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 0.75rem 2rem;
+            border-radius: 3rem;
+            box-shadow: 0 10px 20px rgba(0,40,0,0.1);
+            border: 1px solid rgba(46, 125, 50, 0.2);
         }
 
         .logo {
-            width: 60px;
-            height: 60px;
+            width: 48px;
+            height: 48px;
             object-fit: contain;
             filter: drop-shadow(0 4px 8px rgba(0,60,0,0.15));
             flex-shrink: 0;
@@ -152,16 +165,15 @@
         }
 
         .title-main {
-            font-size: 2rem;
+            font-size: 1.8rem;
             font-weight: 900;
             color: #1e4a2a;
             letter-spacing: 0.02em;
             line-height: 1.2;
-            text-shadow: 1px 1px 2px rgba(0,30,0,0.1);
         }
 
         .title-sub {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: #2e6b3e;
             opacity: 0.9;
             margin-top: 0.1rem;
@@ -195,17 +207,19 @@
 </head>
 <body class="p-4">
     <div class="max-w-lg mx-auto">
-        <!-- 標頭 - Logo 在左邊，文字在右邊 -->
-        <div class="header-left">
-            <img src="/logo.png" alt="蕨積" class="logo" 
-                 onerror="this.onerror=null; this.style.display='none'; console.log('Logo 載入失敗')">
-            <div class="title-group">
-                <h1 class="title-main">
-                    蕨積碳足跡
-                </h1>
-                <p class="title-sub">
-                    看見每一天的綠色貢獻
-                </p>
+        <!-- 標頭 - Logo+文字放在三塊統計卡片中間 -->
+        <div class="header-center-block">
+            <div class="logo-title-container">
+                <img src="/logo.png" alt="蕨積" class="logo" 
+                     onerror="this.onerror=null; this.style.display='none'; console.log('Logo 載入失敗')">
+                <div class="title-group">
+                    <h1 class="title-main">
+                        蕨積碳足跡
+                    </h1>
+                    <p class="title-sub">
+                        看見每一天的綠色貢獻
+                    </p>
+                </div>
             </div>
         </div>
 
@@ -213,7 +227,7 @@
         <div class="grid grid-cols-3 gap-3 mb-6">
             <!-- 正在照顧 -->
             <div class="stat-card">
-                <div class="stat-value stat-green" id="total-plants">0</div>
+                <div class="stat-value stat-green" id="total-plants">188</div>
                 <div class="text-[11px] text-gray-500 flex items-center justify-center gap-1 font-medium">
                     正在照顧
                     <span class="info-tooltip">
@@ -229,7 +243,7 @@
             
             <!-- 累積吸收 -->
             <div class="stat-card">
-                <div class="stat-value stat-blue" id="total-carbon">0</div>
+                <div class="stat-value stat-blue" id="total-carbon">0 kg</div>
                 <div class="text-[11px] text-gray-500 flex items-center justify-center gap-1 font-medium">
                     累積吸收
                     <span class="info-tooltip">
@@ -251,7 +265,7 @@
             
             <!-- 進行中 -->
             <div class="stat-card">
-                <div class="stat-value stat-purple" id="active-batches">0</div>
+                <div class="stat-value stat-purple" id="active-batches">15</div>
                 <div class="text-[11px] text-gray-500 flex items-center justify-center gap-1 font-medium">
                     進行中
                     <span class="info-tooltip">
