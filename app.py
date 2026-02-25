@@ -184,3 +184,34 @@ def test():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000, debug=True)
+# 刪除農場資料
+@app.route('/api/delete_farm/<farm_id>', methods=['DELETE'])
+def delete_farm(farm_id):
+    try:
+        # 先檢查資料是否存在
+        check = supabase.table("farms").select("*").eq("id", farm_id).execute()
+        if not check.data:
+            return jsonify({"error": "找不到該筆資料"}), 404
+        
+        # 執行刪除
+        result = supabase.table("farms").delete().eq("id", farm_id).execute()
+        return jsonify({"status": "ok", "message": "刪除成功", "data": result.data})
+    except Exception as e:
+        print(f"刪除錯誤: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+# 刪除案場資料
+@app.route('/api/delete_project/<project_id>', methods=['DELETE'])
+def delete_project(project_id):
+    try:
+        # 先檢查資料是否存在
+        check = supabase.table("projects").select("*").eq("id", project_id).execute()
+        if not check.data:
+            return jsonify({"error": "找不到該筆資料"}), 404
+        
+        # 執行刪除
+        result = supabase.table("projects").delete().eq("id", project_id).execute()
+        return jsonify({"status": "ok", "message": "刪除成功", "data": result.data})
+    except Exception as e:
+        print(f"刪除錯誤: {str(e)}")
+        return jsonify({"error": str(e)}), 500
