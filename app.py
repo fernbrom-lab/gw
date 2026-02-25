@@ -127,6 +127,8 @@ def get_farms():
             
             # 當前庫存 = 初始數量 - 已出貨總量
             current_quantity = farm.get('initial_quantity', 0) - total_shipped
+            if current_quantity < 0:
+                current_quantity = 0
             
             # 更新資料庫中的當前庫存
             supabase.table("farms")\
@@ -135,6 +137,7 @@ def get_farms():
                 .execute()
             
             # 計算此批次的碳吸收量
+            absorption = 0
             if current_quantity > 0 and farm.get('in_date'):
                 plant_type = farm.get('plant_type', '其他')
                 plant_size = farm.get('plant_size', 'medium')
@@ -156,7 +159,7 @@ def get_farms():
                 "growth_records": growth_res.data,
                 "shipments": shipments_res.data,
                 "total_shipped": total_shipped,
-                "carbon_absorption": absorption if current_quantity > 0 else 0
+                "carbon_absorption": absorption
             }
             result.append(farm_data)
         
@@ -188,7 +191,7 @@ def add_farm():
         if photo and photo.filename:
             photo_url = upload_photo(photo)
         
-        # 取得植物類型和大小（新增欄位）
+        # 取得植物類型和大小
         plant_type = request.form.get('plant_type', '其他')
         plant_size = request.form.get('plant_size', 'medium')
         
@@ -206,7 +209,7 @@ def add_farm():
             "photo_url": photo_url
         }
         
-        print("新增批次:", farm_data)  # 除錯用
+        print("新增批次:", farm_data)
         
         result = supabase.table("farms").insert(farm_data).execute()
         
@@ -305,10 +308,17 @@ def add_shipment():
 @app.route('/api/delete_growth_record/<record_id>', methods=['DELETE'])
 def delete_growth_record(record_id):
     try:
+        # 先檢查紀錄是否存在
+        check = supabase.table("farm_growth_records").select("*").eq("id", record_id).execute()
+        if not check.data:
+            return jsonify({"error": "找不到該筆生長紀錄"}), 404
+        
+        # 執行刪除
         supabase.table("farm_growth_records").delete().eq("id", record_id).execute()
-        return jsonify({"status": "ok"})
+        
+        return jsonify({"status": "ok", "message": "刪除成功"})
     except Exception as e:
-        print(f"錯誤: {str(e)}")
+        print(f"刪除生長紀錄錯誤: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 # ========== 刪除出貨紀錄 ==========
@@ -339,6 +349,8 @@ def delete_shipment(shipment_id):
         if farm_res.data:
             initial = farm_res.data[0].get('initial_quantity', 0)
             new_quantity = initial - total_shipped
+            if new_quantity < 0:
+                new_quantity = 0
             
             # 更新庫存
             supabase.table("farms")\
@@ -346,19 +358,26 @@ def delete_shipment(shipment_id):
                 .eq("id", farm_id)\
                 .execute()
         
-        return jsonify({"status": "ok"})
+        return jsonify({"status": "ok", "message": "刪除成功"})
     except Exception as e:
-        print(f"錯誤: {str(e)}")
+        print(f"刪除出貨紀錄錯誤: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 # ========== 刪除整個批次 ==========
 @app.route('/api/delete_farm/<farm_id>', methods=['DELETE'])
 def delete_farm(farm_id):
     try:
+        # 先檢查批次是否存在
+        check = supabase.table("farms").select("*").eq("id", farm_id).execute()
+        if not check.data:
+            return jsonify({"error": "找不到該批次"}), 404
+        
+        # 執行刪除（因為設了 ON DELETE CASCADE，相關的生長紀錄和出貨會自動刪除）
         supabase.table("farms").delete().eq("id", farm_id).execute()
-        return jsonify({"status": "ok"})
+        
+        return jsonify({"status": "ok", "message": "刪除成功"})
     except Exception as e:
-        print(f"錯誤: {str(e)}")
+        print(f"刪除批次錯誤: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 # ========== 測試連線 ==========
