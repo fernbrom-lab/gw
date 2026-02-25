@@ -3,362 +3,309 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>碳排管理後台</title>
+    <title>農場碳管理後台</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        input, select, button { transition: all 0.15s ease; }
-        input:focus, select:focus { outline: 2px solid #3b82f6; outline-offset: 2px; }
-        input[type="file"]::file-selector-button {
-            background: #e2e8f0; border: none; padding: 0.5rem 1rem; border-radius: 0.75rem;
-            font-weight: 600; color: #1e293b; margin-right: 1rem; cursor: pointer;
-        }
-        input[type="file"]::file-selector-button:hover { background: #cbd5e1; }
-        .upload-success { background-color: #f0fdf4; border: 1px solid #86efac; }
-        .upload-error { background-color: #fef2f2; border: 1px solid #fecaca; }
-        .delete-btn {
-            opacity: 0;
-            transition: opacity 0.2s ease;
-        }
-        .record-item:hover .delete-btn {
-            opacity: 1;
-        }
+        .tab { cursor: pointer; }
+        .tab.active { border-bottom: 3px solid #10b981; font-weight: bold; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal.show { display: flex; }
     </style>
 </head>
-<body class="bg-slate-50 p-4 font-sans text-sm antialiased">
-    <div class="max-w-xl mx-auto space-y-6">
-        <!-- 狀態列 -->
-        <div class="bg-white p-4 rounded-2xl shadow-sm flex items-center justify-between text-xs text-gray-500 border">
-            <div class="flex items-center gap-2">
-                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                <span>後端: <span id="backend-status" class="font-mono">檢查中...</span></span>
-            </div>
-            <div>
-                <a href="/" class="text-blue-600 hover:text-blue-800" target="_blank">前往前台</a>
-            </div>
-        </div>
+<body class="bg-gray-50 p-4">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-black text-green-800 mb-6">🌿 農場碳管理後台</h1>
+        
+        <!-- 新增批次按鈕 -->
+        <button onclick="showAddFarmModal()" class="bg-green-600 text-white px-6 py-3 rounded-xl font-bold mb-6">
+            ➕ 新增植物批次
+        </button>
 
-        <!-- 植物入庫 -->
-        <div class="bg-white p-6 rounded-3xl shadow-lg border border-green-200">
-            <h2 class="text-xl font-bold text-green-700 mb-4 italic">🌿 植物入庫數據</h2>
-            <form id="farmForm" class="grid grid-cols-2 gap-3">
-                <input type="text" name="batch_number" placeholder="批號 *" required
-                       class="col-span-2 border p-3 rounded-xl bg-white focus:ring-2 focus:ring-green-200">
-                <input type="text" name="plant_name" placeholder="品種" 
-                       class="border p-3 rounded-xl bg-white focus:ring-2 focus:ring-green-200">
-                <input type="number" name="quantity" placeholder="數量" 
-                       class="border p-3 rounded-xl bg-white focus:ring-2 focus:ring-green-200">
-                <div class="space-y-1">
-                    <label class="text-[10px] ml-1 font-bold text-gray-400">📅 進貨日</label>
-                    <input type="date" name="in_date" class="w-full border p-2 rounded-xl bg-white">
+        <!-- 批次列表 -->
+        <div id="batches-list" class="space-y-4">
+            載入中...
+        </div>
+    </div>
+
+    <!-- 新增批次 Modal -->
+    <div id="addFarmModal" class="modal items-center justify-center">
+        <div class="bg-white p-6 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <h2 class="text-xl font-bold mb-4">新增植物批次</h2>
+            <form id="addFarmForm" class="space-y-3">
+                <input type="text" name="batch_number" placeholder="批號 *" required class="w-full border p-3 rounded-xl">
+                <input type="text" name="plant_name" placeholder="品種" class="w-full border p-3 rounded-xl">
+                <input type="number" name="quantity" placeholder="初始數量" required class="w-full border p-3 rounded-xl">
+                <input type="date" name="in_date" class="w-full border p-3 rounded-xl">
+                <input type="text" name="supplier" placeholder="供應商" class="w-full border p-3 rounded-xl">
+                <textarea name="notes" placeholder="備註" class="w-full border p-3 rounded-xl"></textarea>
+                <input type="file" name="photo" accept="image/*" class="w-full border p-2 rounded-xl">
+                <div class="flex gap-2">
+                    <button type="button" onclick="saveFarm()" class="flex-1 bg-green-600 text-white py-3 rounded-xl">儲存</button>
+                    <button type="button" onclick="hideModal('addFarmModal')" class="flex-1 bg-gray-200 py-3 rounded-xl">取消</button>
                 </div>
-                <div class="space-y-1">
-                    <label class="text-[10px] ml-1 font-bold text-gray-400">📆 出貨日</label>
-                    <input type="date" name="out_date" class="w-full border p-2 rounded-xl bg-white">
-                </div>
-                <input type="file" name="photo" accept="image/*" 
-                       class="col-span-2 text-xs border p-2 rounded-xl file:mr-3 file:bg-green-100 file:text-green-800 file:border-0 file:rounded-lg">
-                <button type="button" onclick="saveFarm()" 
-                        class="col-span-2 bg-green-600 hover:bg-green-700 active:scale-[0.98] text-white py-3 rounded-xl font-bold shadow-md">
-                    上傳農場數據
-                </button>
             </form>
-            <!-- 上傳結果顯示 -->
-            <div id="farm-result" class="mt-4 p-3 rounded-xl text-sm hidden"></div>
         </div>
+    </div>
 
-        <!-- 工程案場 -->
-        <div class="bg-white p-6 rounded-3xl shadow-lg border border-blue-200">
-            <h2 class="text-xl font-bold text-blue-700 mb-4 italic">🏗️ 施工與物料登錄</h2>
-            <div class="space-y-4">
-                <input type="text" id="p_name" placeholder="案場名稱" 
-                       class="w-full border p-3 rounded-xl bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-200">
-                
-                <div class="grid grid-cols-2 gap-3">
-                    <select id="p_grid_type" class="border p-3 rounded-xl bg-white">
-                        <option value="spot_weld">⚡ 點銲網</option>
-                        <option value="galvanized">🔩 鍍鋅鐵網</option>
-                        <option value="stainless">✨ 不銹鋼網</option>
-                    </select>
-                    <input type="number" id="p_grid_weight" placeholder="結構重 (kg)" step="0.1" class="border p-3 rounded-xl">
-                    <input type="number" id="p_diesel" placeholder="柴油 (L)" step="0.1" class="border p-3 rounded-xl">
-                    <input type="number" id="p_gasoline" placeholder="汽油 (L)" step="0.1" class="border p-3 rounded-xl">
-                    <input type="number" id="p_days" placeholder="施工天數" step="0.5" class="border p-3 rounded-xl">
-                    <input type="number" id="p_pots" placeholder="花槽數量" class="border p-3 rounded-xl">
-                    <input type="number" id="p_layers" placeholder="滴灌層數" class="border p-3 rounded-xl">
-                    <input type="number" id="p_drip_len" placeholder="單層長度(m)" step="0.1" class="border p-3 rounded-xl">
-                    <input type="number" id="p_plants" placeholder="植物總量" class="border p-3 rounded-xl">
-                    <input type="number" id="p_water" placeholder="預估用水(L)" step="0.1" class="border p-3 rounded-xl">
+    <!-- 生長紀錄 Modal -->
+    <div id="growthModal" class="modal items-center justify-center">
+        <div class="bg-white p-6 rounded-2xl max-w-md w-full">
+            <h2 class="text-xl font-bold mb-4">新增生長紀錄</h2>
+            <form id="growthForm" class="space-y-3">
+                <input type="hidden" id="growth_farm_id" name="farm_id">
+                <input type="date" name="record_date" class="w-full border p-3 rounded-xl" required>
+                <input type="number" name="quantity" placeholder="目前數量" class="w-full border p-3 rounded-xl">
+                <textarea name="notes" placeholder="觀察紀錄" class="w-full border p-3 rounded-xl"></textarea>
+                <input type="file" name="photo" accept="image/*" class="w-full border p-2 rounded-xl">
+                <div class="flex gap-2">
+                    <button type="button" onclick="saveGrowthRecord()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl">儲存</button>
+                    <button type="button" onclick="hideModal('growthModal')" class="flex-1 bg-gray-200 py-3 rounded-xl">取消</button>
                 </div>
-                
-                <input type="number" id="p_acc" placeholder="配件重量(kg)" step="0.1" 
-                       class="w-full border p-3 rounded-xl bg-gray-50 focus:bg-white">
-                
-                <button type="button" onclick="saveProject()" 
-                        class="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white py-4 rounded-xl font-bold shadow-lg">
-                    建立案場
-                </button>
-            </div>
-            <!-- 案場上傳結果 -->
-            <div id="project-result" class="mt-4 p-3 rounded-xl text-sm hidden"></div>
+            </form>
         </div>
+    </div>
 
-        <!-- 顯示最近上傳的資料（加入刪除功能） -->
-        <div class="bg-white p-6 rounded-3xl shadow-lg">
-            <h3 class="font-bold text-lg mb-4">📋 最近上傳紀錄</h3>
-            <div id="recent-data" class="text-sm text-gray-700">
-                載入中...
-            </div>
+    <!-- 出貨 Modal -->
+    <div id="shipmentModal" class="modal items-center justify-center">
+        <div class="bg-white p-6 rounded-2xl max-w-md w-full">
+            <h2 class="text-xl font-bold mb-4">新增出貨</h2>
+            <form id="shipmentForm" class="space-y-3">
+                <input type="hidden" id="shipment_farm_id" name="farm_id">
+                <input type="date" name="shipment_date" class="w-full border p-3 rounded-xl" required>
+                <input type="number" name="quantity" placeholder="出貨數量" required class="w-full border p-3 rounded-xl">
+                <input type="text" name="customer" placeholder="客戶" class="w-full border p-3 rounded-xl">
+                <textarea name="notes" placeholder="備註" class="w-full border p-3 rounded-xl"></textarea>
+                <div class="flex gap-2">
+                    <button type="button" onclick="saveShipment()" class="flex-1 bg-purple-600 text-white py-3 rounded-xl">儲存</button>
+                    <button type="button" onclick="hideModal('shipmentModal')" class="flex-1 bg-gray-200 py-3 rounded-xl">取消</button>
+                </div>
+            </form>
         </div>
     </div>
 
     <script>
-        // 檢查後端狀態
-        async function checkBackend() {
+        // 顯示/隱藏 Modal
+        function showModal(id) { document.getElementById(id).classList.add('show'); }
+        function hideModal(id) { document.getElementById(id).classList.remove('show'); }
+        
+        function showAddFarmModal() {
+            document.getElementById('addFarmForm').reset();
+            showModal('addFarmModal');
+        }
+        
+        function showGrowthModal(farmId) {
+            document.getElementById('growth_farm_id').value = farmId;
+            document.getElementById('growthForm').reset();
+            showModal('growthModal');
+        }
+        
+        function showShipmentModal(farmId, currentQty) {
+            document.getElementById('shipment_farm_id').value = farmId;
+            document.getElementById('shipmentForm').reset();
+            showModal('shipmentModal');
+        }
+
+        // 載入所有批次
+        async function loadBatches() {
             try {
-                const res = await fetch('/api/test');
+                const res = await fetch('/api/farms');
                 const data = await res.json();
-                document.getElementById('backend-status').innerText = '✅ 連線正常';
-            } catch (e) {
-                document.getElementById('backend-status').innerText = '❌ 無法連線';
-            }
-        }
-
-        // 載入最近資料
-        async function loadRecent() {
-            try {
-                const [farmsRes, projectsRes] = await Promise.all([
-                    fetch('/api/farms'),
-                    fetch('/api/projects')
-                ]);
                 
-                const farms = await farmsRes.json();
-                const projects = await projectsRes.json();
+                const container = document.getElementById('batches-list');
+                if (data.farms.length === 0) {
+                    container.innerHTML = '<p class="text-gray-400">尚無資料</p>';
+                    return;
+                }
                 
-                let html = '<div class="space-y-4">';
-                
-                // 農場列表
-                html += '<div>';
-                html += '<p class="font-bold text-green-700 mb-2">📦 最近農場資料</p>';
-                if (farms.length === 0) {
-                    html += '<p class="text-gray-400 text-xs">尚無資料</p>';
-                } else {
-                    farms.slice(0, 10).forEach(f => {
-                        html += `
-                            <div class="record-item border-l-4 border-green-300 pl-3 py-2 bg-green-50/30 rounded mb-2 flex justify-between items-center group">
-                                <div class="flex-1">
-                                    <div class="font-medium">${f.batch_number || '無批號'} - ${f.plant_name || '未填'} (${f.quantity || 0}株)</div>
-                                    <div class="text-xs text-gray-400">${f.photo_url ? '📸 有照片' : '📸 無照片'} | ID: ${f.id?.substring(0,8)}...</div>
+                container.innerHTML = data.farms.map(farm => `
+                    <div class="bg-white rounded-2xl p-6 shadow">
+                        <!-- 批次標頭 -->
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 class="text-xl font-bold">${farm.batch_number} - ${farm.plant_name || '未命名'}</h3>
+                                <div class="text-sm text-gray-500 mt-1">
+                                    初始: ${farm.initial_quantity} 株 | 
+                                    目前: <span class="font-bold text-green-600">${farm.current_quantity}</span> 株 |
+                                    已出貨: ${farm.total_shipped || 0} 株
                                 </div>
-                                <button onclick="deleteFarm('${f.id}', '${f.batch_number}')" 
-                                        class="delete-btn ml-2 px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded-full transition-opacity">
-                                    刪除
-                                </button>
+                                <div class="text-xs text-gray-400">進貨日: ${farm.in_date || '無'}</div>
                             </div>
-                        `;
-                    });
-                }
-                html += '</div>';
-                
-                // 案場列表
-                html += '<div class="mt-4">';
-                html += '<p class="font-bold text-blue-700 mb-2">🏗️ 最近案場</p>';
-                if (projects.length === 0) {
-                    html += '<p class="text-gray-400 text-xs">尚無資料</p>';
-                } else {
-                    projects.slice(0, 10).forEach(p => {
-                        html += `
-                            <div class="record-item border-l-4 border-blue-300 pl-3 py-2 bg-blue-50/30 rounded mb-2 flex justify-between items-center group">
-                                <div class="flex-1">
-                                    <div class="font-medium">${p.project_name || '未命名'}</div>
-                                    <div class="text-xs text-gray-400">ID: ${p.id?.substring(0,8)}...</div>
+                            <button onclick="deleteFarm('${farm.id}')" class="text-red-500 hover:text-red-700">刪除批次</button>
+                        </div>
+                        
+                        <!-- 操作按鈕 -->
+                        <div class="flex gap-2 mb-4">
+                            <button onclick="showGrowthModal('${farm.id}')" 
+                                    class="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm hover:bg-blue-600">
+                                📸 新增生長紀錄
+                            </button>
+                            <button onclick="showShipmentModal('${farm.id}', ${farm.current_quantity})" 
+                                    class="px-4 py-2 bg-purple-500 text-white rounded-xl text-sm hover:bg-purple-600">
+                                📦 新增出貨
+                            </button>
+                        </div>
+                        
+                        <!-- 生長紀錄時間軸 -->
+                        ${farm.growth_records && farm.growth_records.length > 0 ? `
+                            <div class="mb-4">
+                                <p class="font-bold text-sm mb-2">📸 生長紀錄</p>
+                                <div class="space-y-2">
+                                    ${farm.growth_records.map(g => `
+                                        <div class="flex items-start gap-2 text-sm border-l-2 border-green-300 pl-3">
+                                            <div>
+                                                <span class="font-medium">${g.record_date}</span>
+                                                ${g.quantity ? `<span class="text-green-600 ml-2">${g.quantity}株</span>` : ''}
+                                                ${g.notes ? `<p class="text-gray-500 text-xs">${g.notes}</p>` : ''}
+                                                ${g.photo_url ? `<a href="${g.photo_url}" target="_blank" class="text-blue-500 text-xs">查看照片</a>` : ''}
+                                            </div>
+                                        </div>
+                                    `).join('')}
                                 </div>
-                                <button onclick="deleteProject('${p.id}', '${p.project_name}')" 
-                                        class="delete-btn ml-2 px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded-full transition-opacity">
-                                    刪除
-                                </button>
                             </div>
-                        `;
-                    });
-                }
-                html += '</div>';
+                        ` : ''}
+                        
+                        <!-- 出貨紀錄 -->
+                        ${farm.shipments && farm.shipments.length > 0 ? `
+                            <div>
+                                <p class="font-bold text-sm mb-2">📦 出貨紀錄</p>
+                                <div class="space-y-2">
+                                    ${farm.shipments.map(s => `
+                                        <div class="flex items-center justify-between text-sm border-l-2 border-purple-300 pl-3">
+                                            <div>
+                                                <span class="font-medium">${s.shipment_date}</span>
+                                                <span class="text-purple-600 ml-2">${s.quantity}株</span>
+                                                ${s.customer ? `<span class="text-gray-500 text-xs ml-2">${s.customer}</span>` : ''}
+                                            </div>
+                                            <button onclick="deleteShipment('${s.id}')" class="text-red-400 text-xs hover:text-red-600">刪除</button>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('');
                 
-                html += '</div>';
-                document.getElementById('recent-data').innerHTML = html;
             } catch (e) {
-                document.getElementById('recent-data').innerHTML = '❌ 無法載入資料：' + e.message;
+                document.getElementById('batches-list').innerHTML = '載入失敗';
             }
         }
 
-        // 刪除農場
-        async function deleteFarm(id, name) {
-            if (!id) {
-                alert('無效的資料ID');
-                return;
-            }
-            
-            // 確認對話框
-            if (!confirm(`確定要刪除農場資料「${name}」嗎？此操作無法復原。`)) {
-                return;
-            }
-
-            try {
-                const res = await fetch(`/api/delete_farm/${id}`, {
-                    method: 'DELETE'
-                });
-
-                const result = await res.json();
-                
-                if (res.ok) {
-                    alert('✅ 刪除成功');
-                    loadRecent(); // 重新載入列表
-                } else {
-                    alert('❌ 刪除失敗：' + (result.error || '未知錯誤'));
-                }
-            } catch (e) {
-                alert('❌ 連線失敗：' + e.message);
-            }
-        }
-
-        // 刪除案場
-        async function deleteProject(id, name) {
-            if (!id) {
-                alert('無效的資料ID');
-                return;
-            }
-            
-            // 確認對話框
-            if (!confirm(`確定要刪除案場「${name}」嗎？此操作無法復原。`)) {
-                return;
-            }
-
-            try {
-                const res = await fetch(`/api/delete_project/${id}`, {
-                    method: 'DELETE'
-                });
-
-                const result = await res.json();
-                
-                if (res.ok) {
-                    alert('✅ 刪除成功');
-                    loadRecent(); // 重新載入列表
-                } else {
-                    alert('❌ 刪除失敗：' + (result.error || '未知錯誤'));
-                }
-            } catch (e) {
-                alert('❌ 連線失敗：' + e.message);
-            }
-        }
-
-        // 儲存農場
+        // 新增批次
         async function saveFarm() {
-            const form = document.getElementById('farmForm');
+            const form = document.getElementById('addFarmForm');
             const formData = new FormData(form);
-            const resultDiv = document.getElementById('farm-result');
-
-            // 檢查批號
-            if (!formData.get('batch_number')) {
-                alert('請填寫批號');
-                return;
-            }
-
-            // 顯示上傳中
-            resultDiv.className = 'mt-4 p-3 rounded-xl text-sm bg-yellow-100 text-yellow-800';
-            resultDiv.innerHTML = '⏳ 上傳中...';
-            resultDiv.classList.remove('hidden');
-
+            
             try {
                 const res = await fetch('/api/add_farm', {
                     method: 'POST',
                     body: formData
                 });
-
-                const result = await res.json();
                 
                 if (res.ok) {
-                    resultDiv.className = 'mt-4 p-3 rounded-xl text-sm bg-green-100 text-green-800';
-                    resultDiv.innerHTML = `
-                        ✅ 上傳成功<br>
-                        批號: ${formData.get('batch_number')}<br>
-                        ${result.photo_url ? '📸 照片已上傳' : '📸 無照片'}
-                    `;
-                    form.reset();
-                    loadRecent(); // 重新載入最近資料
+                    alert('✅ 新增成功');
+                    hideModal('addFarmModal');
+                    loadBatches();
                 } else {
-                    resultDiv.className = 'mt-4 p-3 rounded-xl text-sm bg-red-100 text-red-800';
-                    resultDiv.innerHTML = '❌ 錯誤：' + (result.error || '未知錯誤');
+                    const err = await res.json();
+                    alert('❌ 錯誤：' + (err.error || '未知錯誤'));
                 }
             } catch (e) {
-                resultDiv.className = 'mt-4 p-3 rounded-xl text-sm bg-red-100 text-red-800';
-                resultDiv.innerHTML = '❌ 連線失敗：' + e.message;
+                alert('❌ 連線失敗');
             }
         }
 
-        // 儲存案場
-        async function saveProject() {
-            const payload = {
-                project_name: document.getElementById('p_name').value.trim() || '未命名案場',
-                grid_type: document.getElementById('p_grid_type').value,
-                grid_weight: parseFloat(document.getElementById('p_grid_weight').value) || 0,
-                diesel_liters: parseFloat(document.getElementById('p_diesel').value) || 0,
-                gasoline_liters: parseFloat(document.getElementById('p_gasoline').value) || 0,
-                est_days: parseFloat(document.getElementById('p_days').value) || 0,
-                pot_count: parseInt(document.getElementById('p_pots').value) || 0,
-                plant_total_count: parseInt(document.getElementById('p_plants').value) || 0,
-                drip_layers: parseInt(document.getElementById('p_layers').value) || 0,
-                drip_len: parseFloat(document.getElementById('p_drip_len').value) || 0,
-                water_est: parseFloat(document.getElementById('p_water').value) || 0,
-                acc_weight: parseFloat(document.getElementById('p_acc').value) || 0
-            };
-
-            const resultDiv = document.getElementById('project-result');
-
-            // 顯示上傳中
-            resultDiv.className = 'mt-4 p-3 rounded-xl text-sm bg-yellow-100 text-yellow-800';
-            resultDiv.innerHTML = '⏳ 建立中...';
-            resultDiv.classList.remove('hidden');
-
+        // 新增生長紀錄
+        async function saveGrowthRecord() {
+            const form = document.getElementById('growthForm');
+            const formData = new FormData(form);
+            
             try {
-                const res = await fetch('/api/add_project', {
+                const res = await fetch('/api/add_growth_record', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
+                    body: formData
                 });
-
-                const result = await res.json();
                 
                 if (res.ok) {
-                    resultDiv.className = 'mt-4 p-3 rounded-xl text-sm bg-green-100 text-green-800';
-                    resultDiv.innerHTML = '✅ 案場建立成功：' + payload.project_name;
-                    
-                    // 清空表單
-                    document.getElementById('p_name').value = '';
-                    document.getElementById('p_grid_weight').value = '';
-                    document.getElementById('p_diesel').value = '';
-                    document.getElementById('p_gasoline').value = '';
-                    document.getElementById('p_days').value = '';
-                    document.getElementById('p_pots').value = '';
-                    document.getElementById('p_plants').value = '';
-                    document.getElementById('p_layers').value = '';
-                    document.getElementById('p_drip_len').value = '';
-                    document.getElementById('p_water').value = '';
-                    document.getElementById('p_acc').value = '';
-                    
-                    loadRecent(); // 重新載入最近資料
+                    alert('✅ 生長紀錄已儲存');
+                    hideModal('growthModal');
+                    loadBatches();
                 } else {
-                    resultDiv.className = 'mt-4 p-3 rounded-xl text-sm bg-red-100 text-red-800';
-                    resultDiv.innerHTML = '❌ 錯誤：' + (result.error || '未知錯誤');
+                    const err = await res.json();
+                    alert('❌ 錯誤：' + (err.error || '未知錯誤'));
                 }
             } catch (e) {
-                resultDiv.className = 'mt-4 p-3 rounded-xl text-sm bg-red-100 text-red-800';
-                resultDiv.innerHTML = '❌ 連線失敗：' + e.message;
+                alert('❌ 連線失敗');
+            }
+        }
+
+        // 新增出貨
+        async function saveShipment() {
+            const form = document.getElementById('shipmentForm');
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            
+            try {
+                const res = await fetch('/api/add_shipment', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                
+                if (res.ok) {
+                    alert('✅ 出貨紀錄已儲存');
+                    hideModal('shipmentModal');
+                    loadBatches();
+                } else {
+                    const err = await res.json();
+                    alert('❌ 錯誤：' + (err.error || '未知錯誤'));
+                }
+            } catch (e) {
+                alert('❌ 連線失敗');
+            }
+        }
+
+        // 刪除批次
+        async function deleteFarm(id) {
+            if (!confirm('確定刪除整個批次？所有生長紀錄和出貨紀錄也會一併刪除！')) return;
+            
+            try {
+                const res = await fetch(`/api/delete_farm/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (res.ok) {
+                    alert('✅ 刪除成功');
+                    loadBatches();
+                } else {
+                    alert('❌ 刪除失敗');
+                }
+            } catch (e) {
+                alert('❌ 連線失敗');
+            }
+        }
+
+        // 刪除出貨紀錄
+        async function deleteShipment(id) {
+            if (!confirm('確定刪除此出貨紀錄？庫存將會恢復。')) return;
+            
+            try {
+                const res = await fetch(`/api/delete_shipment/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (res.ok) {
+                    alert('✅ 刪除成功');
+                    loadBatches();
+                } else {
+                    alert('❌ 刪除失敗');
+                }
+            } catch (e) {
+                alert('❌ 連線失敗');
             }
         }
 
         // 初始化
-        window.onload = function() {
-            checkBackend();
-            loadRecent();
-        };
+        window.onload = loadBatches;
     </script>
 </body>
 </html>
