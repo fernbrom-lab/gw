@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>蕨積碳管理 - 看見植物每一天的貢獻</title>
+    <title>蕨積碳足跡 - 看見每一天的綠色貢獻</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
@@ -128,21 +128,46 @@
             white-space: nowrap;
         }
 
-        /* Logo 樣式 */
-        .logo-container {
+        /* Logo 和標題置中 */
+        .header-center {
             display: flex;
+            flex-direction: column;
             align-items: center;
-            gap: 0.75rem;
+            justify-content: center;
+            text-align: center;
+            margin-bottom: 1.5rem;
         }
 
         .logo {
-            width: 48px;
-            height: 48px;
+            width: 80px;
+            height: 80px;
             object-fit: contain;
-            filter: drop-shadow(0 4px 6px rgba(0,40,0,0.1));
+            margin-bottom: 0.5rem;
+            filter: drop-shadow(0 4px 8px rgba(0,60,0,0.15));
         }
 
-        /* 修正統計數字的顏色 */
+        .logo-small {
+            width: 48px;
+            height: 48px;
+        }
+
+        .title-main {
+            font-size: 2.25rem;
+            font-weight: 900;
+            color: #1e4a2a;
+            letter-spacing: 0.05em;
+            line-height: 1.2;
+            text-shadow: 2px 2px 4px rgba(0,30,0,0.1);
+        }
+
+        .title-sub {
+            font-size: 0.95rem;
+            color: #2e6b3e;
+            opacity: 0.9;
+            margin-top: 0.25rem;
+            letter-spacing: 0.02em;
+        }
+
         .stat-green {
             color: #1e7e34;
             background: linear-gradient(135deg, #1e7e34, #2e8b57);
@@ -170,23 +195,21 @@
 </head>
 <body class="p-4">
     <div class="max-w-lg mx-auto">
-        <!-- 標頭 - 加入 Logo 和淺綠底色 -->
-       <header class="mb-6">
-    <div class="logo-container">
-        <img src="/logo.png" alt="Logo" class="logo" 
-             onerror="this.onerror=null; this.style.display='none'; console.log('Logo 載入失敗')">
-        <div>
-            <h1 class="text-3xl font-black text-green-800 tracking-tight">
+        <!-- 標頭 - 置中版本 -->
+        <div class="header-center">
+            <img src="/logo.png" alt="蕨積" class="logo" 
+                 onerror="this.onerror=null; this.style.display='none'; console.log('Logo 載入失敗')">
+            <h1 class="title-main">
                 蕨積碳足跡
             </h1>
-            <p class="text-sm text-green-600/80 mt-0.5">看見每一天的綠色貢獻</p>
+            <p class="title-sub">
+                看見每一天的綠色貢獻
+            </p>
         </div>
-    </div>
-</header>
 
-        <!-- 統計卡片 - 修正數字加總問題 -->
+        <!-- 統計卡片 -->
         <div class="grid grid-cols-3 gap-3 mb-6">
-            <!-- 庫存 -->
+            <!-- 正在照顧 -->
             <div class="stat-card">
                 <div class="stat-value stat-green" id="total-plants">0</div>
                 <div class="text-[11px] text-gray-500 flex items-center justify-center gap-1 font-medium">
@@ -202,7 +225,7 @@
                 </div>
             </div>
             
-            <!-- 碳吸收 -->
+            <!-- 累積吸收 -->
             <div class="stat-card">
                 <div class="stat-value stat-blue" id="total-carbon">0</div>
                 <div class="text-[11px] text-gray-500 flex items-center justify-center gap-1 font-medium">
@@ -331,9 +354,7 @@
                 
                 const data = await res.json();
                 
-                // 更新統計 - 確認數字正確加總
-                console.log('後端回傳資料:', data); // 除錯用
-                
+                // 更新統計
                 const totalPlants = data.summary?.total_plants || 0;
                 const totalCarbon = data.summary?.total_carbon_kg || 0;
                 const activeBatches = data.summary?.active_batches || 0;
