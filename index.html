@@ -2,40 +2,128 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>農場碳管理</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        body { 
+            font-family: 'Noto Sans TC', sans-serif; 
+            background-color: #f5f5f4;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* 手機最佳化 */
+        .card {
+            background: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        /* 生長紀錄展開動畫 */
+        .growth-record {
+            transition: all 0.2s ease;
+        }
+        
+        .growth-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        
+        .growth-content.expanded {
+            max-height: 500px; /* 足夠顯示內容 */
+        }
+        
+        /* 照片容器 */
+        .photo-container {
+            aspect-ratio: 1/1;
+            overflow: hidden;
+            border-radius: 1rem;
+            background-color: #f3f4f6;
+        }
+        
+        .photo-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        /* 點擊區域 */
+        .clickable {
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* 統計卡片 */
+        .stat-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+    </style>
 </head>
-<body class="bg-gray-50 p-4">
-    <div class="max-w-6xl mx-auto">
-        <header class="text-center mb-8">
-            <h1 class="text-4xl font-black text-green-800">🌱 農場碳管理</h1>
-            <p class="text-gray-500">植物生長全紀錄・碳資產可視化</p>
+<body class="p-3">
+    <div class="max-w-lg mx-auto">
+        <!-- 標頭 -->
+        <header class="mb-4 flex items-center justify-between">
+            <h1 class="text-2xl font-black text-green-800">
+                🌱 農場碳管理
+            </h1>
+            <div class="text-xs text-gray-400">
+                即時更新中
+            </div>
         </header>
 
-        <!-- 統計卡片 -->
-        <div class="grid grid-cols-3 gap-4 mb-8">
-            <div class="bg-white p-6 rounded-2xl shadow text-center">
-                <div class="text-3xl font-black text-green-600" id="total-plants">0</div>
-                <div class="text-sm text-gray-500">目前庫存(株)</div>
+        <!-- 統計卡片 - 手機友善 -->
+        <div class="grid grid-cols-3 gap-2 mb-4">
+            <div class="stat-card">
+                <div class="text-xl font-black text-green-600" id="total-plants">0</div>
+                <div class="text-[10px] text-gray-500">庫存(株)</div>
             </div>
-            <div class="bg-white p-6 rounded-2xl shadow text-center">
-                <div class="text-3xl font-black text-blue-600" id="total-carbon">0</div>
-                <div class="text-sm text-gray-500">碳吸收量(kg)</div>
+            <div class="stat-card">
+                <div class="text-xl font-black text-blue-600" id="total-carbon">0</div>
+                <div class="text-[10px] text-gray-500">碳吸收(kg)</div>
             </div>
-            <div class="bg-white p-6 rounded-2xl shadow text-center">
-                <div class="text-3xl font-black text-purple-600" id="active-batches">0</div>
-                <div class="text-sm text-gray-500">進行中批次</div>
+            <div class="stat-card">
+                <div class="text-xl font-black text-purple-600" id="active-batches">0</div>
+                <div class="text-[10px] text-gray-500">進行中</div>
             </div>
         </div>
 
-        <!-- 批次時間軸 -->
-        <div id="timeline" class="space-y-6">
+        <!-- 批次列表 -->
+        <div id="batches-container" class="space-y-3">
             載入中...
         </div>
     </div>
 
     <script>
+        // 格式化日期
+        function formatDate(dateStr) {
+            if (!dateStr) return '無日期';
+            const d = new Date(dateStr);
+            return `${d.getFullYear()}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`;
+        }
+
+        // 切換生長紀錄展開/收合
+        function toggleGrowth(batchId) {
+            const content = document.getElementById(`growth-${batchId}`);
+            const icon = document.getElementById(`icon-${batchId}`);
+            
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                if (icon) icon.textContent = '▼';
+            } else {
+                content.classList.add('expanded');
+                if (icon) icon.textContent = '▲';
+            }
+        }
+
+        // 載入資料
         async function loadData() {
             try {
                 const res = await fetch('/api/farms');
@@ -46,52 +134,142 @@
                 document.getElementById('total-carbon').textContent = data.summary.total_carbon_kg;
                 document.getElementById('active-batches').textContent = data.summary.active_batches;
                 
-                // 渲染時間軸
-                const timeline = document.getElementById('timeline');
+                const container = document.getElementById('batches-container');
+                
                 if (data.farms.length === 0) {
-                    timeline.innerHTML = '<p class="text-center text-gray-400">尚無資料</p>';
+                    container.innerHTML = `
+                        <div class="bg-white rounded-2xl p-8 text-center text-gray-400">
+                            📭 目前沒有植物資料
+                        </div>
+                    `;
                     return;
                 }
                 
-                timeline.innerHTML = data.farms.map(farm => `
-                    <div class="bg-white rounded-2xl p-6 shadow">
-                        <h2 class="text-2xl font-bold mb-2">${farm.batch_number} - ${farm.plant_name || '未命名'}</h2>
-                        <div class="text-sm text-gray-500 mb-4">進貨: ${farm.in_date || '無'} | 目前庫存: ${farm.current_quantity}/${farm.initial_quantity} 株</div>
-                        
-                        <!-- 生長紀錄時間軸 -->
-                        <div class="relative pl-8 border-l-4 border-green-200">
-                            ${farm.growth_records && farm.growth_records.length > 0 ? farm.growth_records.map(g => `
-                                <div class="mb-6 relative">
-                                    <div class="absolute -left-10 w-6 h-6 bg-green-500 rounded-full border-4 border-white"></div>
-                                    <div class="text-sm font-medium">${g.record_date}</div>
-                                    ${g.quantity ? `<div class="text-green-600 font-bold">📊 ${g.quantity} 株</div>` : ''}
-                                    ${g.notes ? `<div class="text-gray-600">${g.notes}</div>` : ''}
-                                    ${g.photo_url ? `
-                                        <img src="${g.photo_url}" class="mt-2 max-w-xs rounded-lg shadow max-h-40 object-cover">
-                                    ` : ''}
+                container.innerHTML = data.farms.map(farm => {
+                    const batchId = farm.id.replace(/-/g, ''); // 簡化ID用於DOM
+                    const hasGrowth = farm.growth_records && farm.growth_records.length > 0;
+                    
+                    return `
+                        <div class="card">
+                            <!-- 主要資訊列：左文字 + 右照片 -->
+                            <div class="flex gap-3">
+                                <!-- 左側：批次資訊 -->
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-black text-green-700">${farm.batch_number}</span>
+                                        <span class="text-xs bg-green-100 px-2 py-0.5 rounded-full text-green-800">${farm.plant_name || '未命名'}</span>
+                                    </div>
+                                    
+                                    <div class="mt-2 space-y-1">
+                                        <div class="flex items-center text-sm">
+                                            <span class="text-gray-400 w-14 text-xs">庫存</span>
+                                            <span class="font-bold text-green-600">${farm.quantity}</span>
+                                            <span class="text-xs text-gray-400 ml-2">/ 初始 ${farm.initial_quantity}</span>
+                                        </div>
+                                        
+                                        <div class="flex items-center text-xs">
+                                            <span class="text-gray-400 w-14">已出貨</span>
+                                            <span class="text-purple-600">${farm.total_shipped || 0}</span>
+                                        </div>
+                                        
+                                        <div class="flex items-center text-xs">
+                                            <span class="text-gray-400 w-14">進貨日</span>
+                                            <span>${formatDate(farm.in_date)}</span>
+                                        </div>
+                                        
+                                        ${farm.supplier ? `
+                                            <div class="flex items-center text-xs">
+                                                <span class="text-gray-400 w-14">供應商</span>
+                                                <span class="truncate">${farm.supplier}</span>
+                                            </div>
+                                        ` : ''}
+                                    </div>
                                 </div>
-                            `).join('') : '<div class="text-gray-400 mb-4">尚無生長紀錄</div>'}
-                        </div>
-                        
-                        <!-- 出貨紀錄 -->
-                        ${farm.shipments && farm.shipments.length > 0 ? `
-                            <div class="mt-4 pt-4 border-t">
-                                <h3 class="font-bold mb-2">📦 出貨紀錄</h3>
-                                ${farm.shipments.map(s => `
-                                    <div class="text-sm">${s.shipment_date} - 出貨 ${s.quantity} 株 ${s.customer ? `(${s.customer})` : ''}</div>
-                                `).join('')}
+                                
+                                <!-- 右側：主要照片 -->
+                                <div class="w-24 h-24 flex-shrink-0">
+                                    <div class="photo-container">
+                                        <img src="${farm.photo_url || 'https://via.placeholder.com/200?text=無照片'}" 
+                                             onerror="this.src='https://via.placeholder.com/200?text=❌'"
+                                             alt="批次照片"
+                                             class="w-full h-full object-cover">
+                                    </div>
+                                </div>
                             </div>
-                        ` : ''}
-                    </div>
-                `).join('');
+                            
+                            <!-- 生長紀錄按鈕和展開區域 -->
+                            ${hasGrowth ? `
+                                <div class="mt-3 border-t pt-2">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs font-medium text-gray-500">
+                                            📸 生長紀錄 ${farm.growth_records.length} 筆
+                                        </span>
+                                        <button onclick="toggleGrowth('${batchId}')" 
+                                                class="text-xs bg-gray-100 px-3 py-1.5 rounded-full flex items-center gap-1">
+                                            <span id="icon-${batchId}">▼</span> 查看
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- 展開內容 -->
+                                    <div id="growth-${batchId}" class="growth-content mt-2">
+                                        <div class="space-y-3 pt-1">
+                                            ${farm.growth_records.map(g => `
+                                                <div class="bg-gray-50 rounded-xl p-3">
+                                                    <div class="flex justify-between items-start">
+                                                        <div class="text-xs font-medium text-gray-600">
+                                                            ${formatDate(g.record_date)}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    ${g.notes ? `
+                                                        <div class="text-sm mt-1 text-gray-700">
+                                                            ${g.notes}
+                                                        </div>
+                                                    ` : ''}
+                                                    
+                                                    ${g.photo_url ? `
+                                                        <div class="mt-2">
+                                                            <img src="${g.photo_url}" 
+                                                                 onerror="this.src='https://via.placeholder.com/400?text=照片載入失敗'"
+                                                                 class="w-full rounded-lg max-h-48 object-cover">
+                                                        </div>
+                                                    ` : ''}
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            <!-- 出貨紀錄摘要 -->
+                            ${farm.shipments && farm.shipments.length > 0 ? `
+                                <div class="mt-2 pt-2 border-t text-xs">
+                                    <span class="text-gray-400">📦 最近出貨:</span>
+                                    <span class="ml-2 text-purple-600">
+                                        ${farm.shipments.slice(0, 2).map(s => `${s.shipment_date} ${s.quantity}株`).join('、')}
+                                        ${farm.shipments.length > 2 ? '...' : ''}
+                                    </span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
                 
             } catch (e) {
-                document.getElementById('timeline').innerHTML = '載入失敗';
+                console.error(e);
+                document.getElementById('batches-container').innerHTML = `
+                    <div class="bg-white rounded-2xl p-8 text-center text-red-400">
+                        ❌ 載入失敗，請檢查網路
+                    </div>
+                `;
             }
         }
         
+        // 初始化
         window.onload = loadData;
-        setInterval(loadData, 30000);
+        
+        // 每分鐘自動更新（節省手機流量）
+        setInterval(loadData, 60000);
     </script>
 </body>
 </html>
