@@ -3,30 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>蕨積 - 看見植物每一天的貢獻</title>
+    <title>農場碳管理 - 看見植物每一天的貢獻</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
         body { 
             font-family: 'Noto Sans TC', sans-serif; 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #f0f9f0 0%, #e6f3e6 100%);
             background-attachment: fixed;
             -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
         }
         
         .card {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 2rem;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 20px 40px rgba(0,40,0,0.08);
             padding: 1.25rem;
             margin-bottom: 1rem;
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid rgba(46, 125, 50, 0.1);
             transition: transform 0.2s;
         }
         
         .card:hover {
             transform: translateY(-2px);
+            box-shadow: 0 25px 50px rgba(0,60,0,0.12);
         }
         
         .growth-content {
@@ -43,8 +45,8 @@
             aspect-ratio: 1/1;
             overflow: hidden;
             border-radius: 1.25rem;
-            background: linear-gradient(45deg, #f3f4f6, #e5e7eb);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+            background: linear-gradient(45deg, #e8f5e8, #c8e6c9);
+            box-shadow: 0 4px 8px rgba(0,30,0,0.05);
         }
         
         .photo-container img {
@@ -59,13 +61,20 @@
         }
         
         .stat-card {
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            border-radius: 1.25rem;
+            border-radius: 1.5rem;
             padding: 1rem;
             text-align: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            border: 1px solid rgba(255,255,255,0.3);
+            box-shadow: 0 8px 20px rgba(0,40,0,0.05);
+            border: 1px solid rgba(76, 175, 80, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 900;
+            line-height: 1;
+            margin-bottom: 0.25rem;
         }
         
         .info-tooltip {
@@ -77,7 +86,7 @@
         .info-tooltip .tooltip-text {
             visibility: hidden;
             width: 300px;
-            background: rgba(30, 41, 59, 0.95);
+            background: rgba(30, 41, 59, 0.98);
             backdrop-filter: blur(10px);
             color: #fff;
             text-align: left;
@@ -92,7 +101,7 @@
             transition: opacity 0.3s;
             font-size: 0.75rem;
             font-weight: normal;
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3);
             border: 1px solid rgba(255,255,255,0.1);
         }
         
@@ -108,7 +117,7 @@
         
         .progress-bar {
             transition: width 1s ease-in-out;
-            background: linear-gradient(90deg, #10b981, #34d399);
+            background: linear-gradient(90deg, #2e7d32, #4caf50);
         }
         
         .badge {
@@ -118,30 +127,74 @@
             font-weight: 600;
             white-space: nowrap;
         }
+
+        /* Logo 樣式 */
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 6px rgba(0,40,0,0.1));
+        }
+
+        /* 修正統計數字的顏色 */
+        .stat-green {
+            color: #1e7e34;
+            background: linear-gradient(135deg, #1e7e34, #2e8b57);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-blue {
+            color: #1e4b7e;
+            background: linear-gradient(135deg, #1e4b7e, #2e5f8b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-purple {
+            color: #5e2e7e;
+            background: linear-gradient(135deg, #5e2e7e, #6e3e8b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
     </style>
 </head>
 <body class="p-4">
     <div class="max-w-lg mx-auto">
-        <!-- 標頭 -->
-        <header class="mb-6 text-center text-white">
-            <h1 class="text-3xl font-black tracking-tight">
-               蕨積碳足跡
-            </h1>
-            <p class="text-sm opacity-90 mt-1">看見每一天的綠色貢獻</p>
+        <!-- 標頭 - 加入 Logo 和淺綠底色 -->
+        <header class="mb-6">
+            <div class="logo-container">
+                <img src="/logo.png" alt="Logo" class="logo" onerror="this.style.display='none'">
+                <div>
+                    <h1 class="text-3xl font-black text-green-800 tracking-tight">
+                        🌱 植物碳足跡
+                    </h1>
+                    <p class="text-sm text-green-600/80 mt-0.5">看見每一天的綠色貢獻</p>
+                </div>
+            </div>
         </header>
 
-        <!-- 統計卡片 -->
+        <!-- 統計卡片 - 修正數字加總問題 -->
         <div class="grid grid-cols-3 gap-3 mb-6">
             <!-- 庫存 -->
             <div class="stat-card">
-                <div class="text-2xl font-black text-green-600" id="total-plants">0</div>
-                <div class="text-[10px] text-gray-500 flex items-center justify-center gap-1">
+                <div class="stat-value stat-green" id="total-plants">0</div>
+                <div class="text-[11px] text-gray-500 flex items-center justify-center gap-1 font-medium">
                     正在照顧
                     <span class="info-tooltip">
                         <span class="text-gray-400">ⓘ</span>
                         <span class="tooltip-text">
                             <strong>🌱 目前照顧中</strong><br>
-                            所有還未出貨的植物數量<br>
+                            所有還未出貨的植物數量總和<br>
                             每一株都在為地球努力
                         </span>
                     </span>
@@ -150,8 +203,8 @@
             
             <!-- 碳吸收 -->
             <div class="stat-card">
-                <div class="text-2xl font-black text-blue-600" id="total-carbon">0</div>
-                <div class="text-[10px] text-gray-500 flex items-center justify-center gap-1">
+                <div class="stat-value stat-blue" id="total-carbon">0</div>
+                <div class="text-[11px] text-gray-500 flex items-center justify-center gap-1 font-medium">
                     累積吸收
                     <span class="info-tooltip">
                         <span class="text-gray-400">ⓘ</span>
@@ -172,14 +225,14 @@
             
             <!-- 進行中 -->
             <div class="stat-card">
-                <div class="text-2xl font-black text-purple-600" id="active-batches">0</div>
-                <div class="text-[10px] text-gray-500 flex items-center justify-center gap-1">
+                <div class="stat-value stat-purple" id="active-batches">0</div>
+                <div class="text-[11px] text-gray-500 flex items-center justify-center gap-1 font-medium">
                     進行中
                     <span class="info-tooltip">
                         <span class="text-gray-400">ⓘ</span>
                         <span class="tooltip-text">
                             <strong>📦 進行中批次</strong><br>
-                            目前還有庫存的植物批次<br>
+                            目前還有庫存的植物批次數量<br>
                             每個批次都有自己的成長故事
                         </span>
                     </span>
@@ -189,11 +242,11 @@
 
         <!-- 批次列表 -->
         <div id="batches-container" class="space-y-4">
-            <div class="text-center py-8 text-white/70">🌱 載入植物故事...</div>
+            <div class="text-center py-8 text-green-600/60">🌱 載入植物故事...</div>
         </div>
         
         <!-- 頁尾說明 -->
-        <div class="mt-8 text-[10px] text-white/60 text-center border-t border-white/20 pt-4">
+        <div class="mt-8 text-[10px] text-green-700/40 text-center border-t border-green-200/50 pt-4">
             <p>🌱 每一天的養護，都在增加對地球的貢獻</p>
             <p class="mt-1">係數來源：農業部農業試驗所 | 不確定範圍 ±20% (ISO 14064-1)</p>
         </div>
@@ -248,26 +301,6 @@
             }
         }
 
-        // 計算碳吸收量（前端備用，但主要用後端回傳的數據）
-        function formatCarbon(data) {
-            if (!data) return null;
-            
-            const days = data.days || 0;
-            const months = data.months || 0;
-            const value = data.value || 0;
-            const low = data.low || 0;
-            const high = data.high || 0;
-            
-            // 計算年化目標
-            const yearTarget = value * (365 / (days || 365));
-            
-            return {
-                ...data,
-                yearTarget: Math.round(yearTarget),
-                progress: Math.min(100, Math.round((days / 365) * 100))
-            };
-        }
-
         // 切換生長紀錄展開/收合
         function toggleGrowth(batchId) {
             const content = document.getElementById(`growth-${batchId}`);
@@ -297,11 +330,16 @@
                 
                 const data = await res.json();
                 
-                // 更新統計
-                document.getElementById('total-plants').textContent = data.summary.total_plants;
-                document.getElementById('total-carbon').textContent = 
-                    `${data.summary.total_carbon_kg} kg`;
-                document.getElementById('active-batches').textContent = data.summary.active_batches;
+                // 更新統計 - 確認數字正確加總
+                console.log('後端回傳資料:', data); // 除錯用
+                
+                const totalPlants = data.summary?.total_plants || 0;
+                const totalCarbon = data.summary?.total_carbon_kg || 0;
+                const activeBatches = data.summary?.active_batches || 0;
+                
+                document.getElementById('total-plants').textContent = totalPlants;
+                document.getElementById('total-carbon').textContent = totalCarbon + ' kg';
+                document.getElementById('active-batches').textContent = activeBatches;
                 
                 if (data.farms.length === 0) {
                     container.innerHTML = `
@@ -325,7 +363,6 @@
                     // 碳吸收數據
                     const carbon = farm.carbon_absorption;
                     const days = carbon?.days || calculateDays(farm.in_date);
-                    const months = carbon?.months || (days / 30).toFixed(1);
                     
                     // 大小顯示
                     const sizeDisplay = SIZE_TEXT[plantSize] || '🌿 中';
@@ -490,7 +527,7 @@
         // 初始化
         window.onload = loadData;
         
-        // 每30秒自動更新（讓時間軸有感）
+        // 每30秒自動更新
         setInterval(loadData, 30000);
     </script>
 </body>
