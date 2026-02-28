@@ -6,7 +6,124 @@
     <title>蕨積碳足跡 - 看見每一天的綠色貢獻</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* ... 原有的樣式 ... */
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        body { 
+            font-family: 'Noto Sans TC', sans-serif; 
+            background: linear-gradient(135deg, #f0f9f0 0%, #e6f3e6 100%);
+            background-attachment: fixed;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 2rem;
+            box-shadow: 0 20px 40px rgba(0,40,0,0.08);
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(46, 125, 50, 0.1);
+        }
+        
+        .photo-container {
+            aspect-ratio: 1/1;
+            overflow: hidden;
+            border-radius: 1.25rem;
+            background: linear-gradient(45deg, #e8f5e8, #c8e6c9);
+        }
+        
+        .photo-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 1.5rem;
+            padding: 1.5rem 1rem;
+            text-align: center;
+            box-shadow: 0 8px 20px rgba(0,40,0,0.05);
+            border: 1px solid rgba(76, 175, 80, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 3rem;
+            font-weight: 900;
+            line-height: 1;
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #2e6b3e;
+            font-weight: 500;
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, #2e7d32, #4caf50);
+        }
+        
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 2rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .header-center-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 1rem 0 2rem 0;
+        }
+
+        .logo-title-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 0.75rem 2rem;
+            border-radius: 3rem;
+            box-shadow: 0 10px 20px rgba(0,40,0,0.1);
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+        }
+
+        .title-main {
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: #1e4a2a;
+        }
+
+        .title-sub {
+            font-size: 0.85rem;
+            color: #2e6b3e;
+        }
+
+        .search-box {
+            background: white;
+            border: 2px solid #4caf50;
+            border-radius: 2rem;
+            padding: 0.75rem 1.5rem;
+            width: 100%;
+            font-size: 1rem;
+            outline: none;
+        }
+        
+        .search-box:focus {
+            border-color: #2e7d32;
+            box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.2);
+        }
+
         .loading-spinner {
             border: 3px solid #f3f3f3;
             border-top: 3px solid #2e7d32;
@@ -23,54 +140,61 @@
         }
         
         .load-more-btn {
-            background: rgba(255, 255, 255, 0.9);
+            background: white;
             border: 2px solid #2e7d32;
             color: #2e7d32;
             padding: 0.75rem 2rem;
             border-radius: 2rem;
             font-weight: 600;
-            transition: all 0.3s;
             margin: 1rem auto;
             display: inline-block;
+            cursor: pointer;
         }
         
-        .load-more-btn:hover {
-            background: #2e7d32;
-            color: white;
-        }
-        
-        .load-more-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        .month-divider {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #1e4a2a;
+            margin: 1.5rem 0 1rem 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid rgba(46, 125, 50, 0.3);
         }
     </style>
 </head>
 <body class="p-4">
     <div class="max-w-lg mx-auto">
-        <!-- 標頭（保持不變） -->
+        <!-- 標頭 -->
         <div class="header-center-block">
-            <!-- ... 標頭內容 ... -->
+            <div class="logo-title-container">
+                <img src="/logo.png" alt="蕨積" class="logo" 
+                     onerror="this.onerror=null; this.style.display='none'">
+                <div class="title-group">
+                    <h1 class="title-main">蕨積碳足跡</h1>
+                    <p class="title-sub">看見每一天的綠色貢獻</p>
+                </div>
+            </div>
         </div>
 
-        <!-- 統計卡片 - 使用輕量級 API -->
-        <div class="grid grid-cols-3 gap-3 mb-6">
+        <!-- 統計卡片 - 只保留兩個 -->
+        <div class="grid grid-cols-2 gap-4 mb-6">
             <!-- 正在照顧 -->
             <div class="stat-card">
-                <div class="stat-value stat-green" id="total-plants">0</div>
-                <div class="text-[11px] text-gray-500">正在照顧</div>
+                <div class="stat-value text-green-600" id="total-plants">0</div>
+                <div class="stat-label">正在照顧</div>
             </div>
             
             <!-- 累積吸收 -->
             <div class="stat-card">
-                <div class="stat-value stat-blue" id="total-carbon">0 kg</div>
-                <div class="text-[11px] text-gray-500">累積吸收</div>
+                <div class="stat-value text-blue-600" id="total-carbon">0</div>
+                <div class="stat-label">累積吸收 (kg)</div>
             </div>
-            
-            <!-- 進行中 -->
-            <div class="stat-card">
-                <div class="stat-value stat-purple" id="active-batches">0</div>
-                <div class="text-[11px] text-gray-500">進行中</div>
-            </div>
+        </div>
+
+        <!-- 查詢輸入框 -->
+        <div class="mb-6">
+            <input type="text" id="search-input" class="search-box" 
+                   placeholder="🔍 輸入植物名稱查詢..." 
+                   oninput="debounceSearch()">
         </div>
 
         <!-- 批次列表 -->
@@ -93,11 +217,22 @@
     </div>
 
     <script>
-        // 全域變數
         let currentPage = 1;
         let totalPages = 1;
         let isLoading = false;
+        let currentSearch = '';
+        let searchTimeout;
         let allFarms = [];
+
+        // 防抖查詢
+        function debounceSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                currentSearch = document.getElementById('search-input').value;
+                currentPage = 1;
+                loadFarms(true);
+            }, 500);
+        }
 
         // 載入統計摘要
         async function loadSummary() {
@@ -107,16 +242,9 @@
                 
                 document.getElementById('total-plants').textContent = data.total_plants;
                 document.getElementById('total-carbon').textContent = data.total_carbon_kg + ' kg';
-                document.getElementById('active-batches').textContent = data.active_batches;
             } catch (e) {
                 console.error('載入統計失敗:', e);
             }
-        }
-
-        // 載入第一頁資料
-        async function loadFirstPage() {
-            currentPage = 1;
-            await loadFarms();
         }
 
         // 載入下一頁
@@ -136,7 +264,12 @@
             document.getElementById('load-more-btn').disabled = true;
             
             try {
-                const res = await fetch(`/api/farms?page=${currentPage}&limit=5`);
+                let url = `/api/farms?page=${currentPage}&limit=5`;
+                if (currentSearch) {
+                    url += `&search=${encodeURIComponent(currentSearch)}`;
+                }
+                
+                const res = await fetch(url);
                 const data = await res.json();
                 
                 totalPages = data.pagination.total_pages;
@@ -148,9 +281,8 @@
                     allFarms = [...allFarms, ...data.farms];
                 }
                 
-                renderFarms(allFarms);
+                renderFarmsByMonth(allFarms);
                 
-                // 顯示/隱藏載入更多按鈕
                 const loadMoreContainer = document.getElementById('load-more-container');
                 if (currentPage < totalPages) {
                     loadMoreContainer.classList.remove('hidden');
@@ -167,17 +299,41 @@
             }
         }
 
-        // 渲染批次列表（使用虛擬捲動的概念，只渲染可見區域）
-        function renderFarms(farms) {
+        // 依照入庫月份分組渲染
+        function renderFarmsByMonth(farms) {
             const container = document.getElementById('batches-container');
+            container.innerHTML = '';
             
+            // 依月份分組
+            const groups = {};
             farms.forEach(farm => {
-                const farmElement = createFarmCard(farm);
-                container.appendChild(farmElement);
+                if (farm.in_date) {
+                    const date = new Date(farm.in_date);
+                    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    if (!groups[monthKey]) groups[monthKey] = [];
+                    groups[monthKey].push(farm);
+                } else {
+                    if (!groups['無日期']) groups['無日期'] = [];
+                    groups['無日期'].push(farm);
+                }
+            });
+            
+            // 排序月份（新的在前）
+            const sortedMonths = Object.keys(groups).sort().reverse();
+            
+            sortedMonths.forEach(month => {
+                const monthDiv = document.createElement('div');
+                monthDiv.className = 'month-divider';
+                monthDiv.textContent = month === '無日期' ? '📅 無日期' : `📅 ${month} 入庫`;
+                container.appendChild(monthDiv);
+                
+                groups[month].forEach(farm => {
+                    container.appendChild(createFarmCard(farm));
+                });
             });
         }
 
-        // 建立單一卡片（使用 DocumentFragment 優化效能）
+        // 建立單一卡片
         function createFarmCard(farm) {
             const card = document.createElement('div');
             card.className = 'card';
@@ -189,15 +345,11 @@
                 <div class="flex gap-4">
                     <div class="flex-1">
                         <div class="flex items-center gap-2 flex-wrap mb-2">
-                            <span class="font-black text-lg text-green-700">${farm.batch_number}</span>
-                            <span class="badge bg-green-100 text-green-800">${farm.plant_name || '未命名'}</span>
+                            <span class="font-black text-lg text-green-700">${farm.plant_name || '未命名'}</span>
+                            <span class="badge bg-green-100 text-green-800">${farm.quantity} 株</span>
                         </div>
                         
-                        <div class="grid grid-cols-3 gap-2 mb-3">
-                            <div>
-                                <div class="text-[10px] text-gray-400">庫存</div>
-                                <div class="font-bold text-green-600">${farm.quantity}</div>
-                            </div>
+                        <div class="grid grid-cols-2 gap-2 mb-3">
                             <div>
                                 <div class="text-[10px] text-gray-400">已出貨</div>
                                 <div class="font-bold text-purple-600">${farm.total_shipped || 0}</div>
@@ -212,6 +364,7 @@
                         <div class="mt-2 mb-3">
                             <div class="flex justify-between text-[10px] text-gray-500 mb-1">
                                 <span>養護 ${days} 天</span>
+                                <span>${progressPercent}%</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                                 <div class="progress-bar h-2 rounded-full" style="width: ${progressPercent}%"></div>
@@ -242,23 +395,16 @@
                         </div>
                     </div>
                 </div>
-                
-                <!-- 顯示有幾筆生長紀錄/出貨紀錄 -->
-                <div class="mt-2 text-xs text-gray-400 flex gap-3">
-                    <span>📸 ${farm.growth_count || 0} 筆紀錄</span>
-                    <span>📦 ${farm.shipments_count || 0} 筆出貨</span>
-                </div>
             `;
             
             return card;
         }
 
-        // 輔助函數
         function formatDate(dateStr) {
             if (!dateStr) return '無日期';
             try {
                 const d = new Date(dateStr);
-                return `${d.getFullYear()}/${(d.getMonth()+1)}/${d.getDate()}`;
+                return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
             } catch {
                 return dateStr;
             }
@@ -277,8 +423,8 @@
 
         // 初始化
         window.onload = async function() {
-            await loadSummary();      // 先載入統計
-            await loadFirstPage();    // 再載入第一頁資料
+            await loadSummary();
+            await loadFarms(false);
         };
     </script>
 </body>
