@@ -6,7 +6,17 @@
     <title>蕨積碳足跡 - 後台管理</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* ... 原有樣式 ... */
+        .modal { 
+            display: none; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.5); 
+            z-index: 1000; 
+        }
+        .modal.show { display: flex; }
         .pagination-btn {
             padding: 0.5rem 1rem;
             margin: 0 0.25rem;
@@ -14,30 +24,48 @@
             background: #f3f4f6;
             cursor: pointer;
         }
-        
         .pagination-btn.active {
             background: #2e7d32;
             color: white;
         }
-        
-        .pagination-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+        .search-box {
+            border: 2px solid #4caf50;
+            border-radius: 2rem;
+            padding: 0.75rem 1.5rem;
+            width: 100%;
+            font-size: 1rem;
+        }
+        .month-divider {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #1e4a2a;
+            margin: 1.5rem 0 1rem 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid rgba(46, 125, 50, 0.3);
         }
     </style>
 </head>
-<body class="p-4">
+<body class="p-4 bg-gray-50">
     <div class="max-w-4xl mx-auto">
-        <!-- 標頭 -->
-        <div class="flex justify-between items-center mb-4">
-            <h1 class="text-2xl font-black text-green-800">蕨積碳足跡 - 後台管理</h1>
-            <button onclick="loadFirstPage()" class="bg-blue-500 text-white px-4 py-2 rounded-lg">刷新</button>
-        </div>
+        <h1 class="text-2xl font-black text-green-800 mb-4">蕨積碳足跡 - 後台管理</h1>
 
         <!-- 新增批次按鈕 -->
         <button onclick="showAddFarmModal()" class="bg-green-600 text-white px-6 py-3 rounded-xl font-bold mb-4">
             ➕ 新增植物批次
         </button>
+
+        <!-- 查詢區塊 -->
+        <div class="mb-6">
+            <div class="flex gap-2">
+                <input type="text" id="search-input" class="search-box flex-1" 
+                       placeholder="🔍 輸入存放區/品種名稱查詢..." 
+                       oninput="debounceSearch()">
+                <button onclick="clearSearch()" class="px-4 py-2 bg-gray-200 rounded-xl">清除</button>
+            </div>
+            
+            <!-- 統計資訊 -->
+            <div id="search-stats" class="mt-2 text-sm text-gray-600 hidden"></div>
+        </div>
 
         <!-- 批次列表 -->
         <div id="batches-list" class="space-y-4"></div>
@@ -49,58 +77,167 @@
         <div id="loading" class="text-center py-4 hidden">載入中...</div>
     </div>
 
+    <!-- 新增批次 Modal -->
+    <div id="addFarmModal" class="modal items-center justify-center">
+        <div class="bg-white p-6 rounded-2xl max-w-md w-full">
+            <h2 class="text-xl font-bold mb-4">新增植物批次</h2>
+            <form id="addFarmForm" class="space-y-3">
+                <!-- 存放區（原批號欄位） -->
+                <input type="text" name="batch_number" placeholder="存放區名稱 *" required class="w-full border p-3 rounded-xl">
+                
+                <input type="text" name="plant_name" placeholder="品種名稱" class="w-full border p-3 rounded-xl">
+                
+                <select name="plant_type" class="w-full border p-3 rounded-xl">
+                    <option value="鹿角蕨">🦌 鹿角蕨</option>
+                    <option value="積水鳳梨">🍍 積水鳳梨</option>
+                    <option value="其他" selected>🌿 其他</option>
+                </select>
+                
+                <select name="plant_size" class="w-full border p-3 rounded-xl">
+                    <option value="small">🌱 小</option>
+                    <option value="medium" selected>🌿 中</option>
+                    <option value="large">🌳 大</option>
+                </select>
+                
+                <input type="number" name="quantity" placeholder="數量" required class="w-full border p-3 rounded-xl">
+                <input type="date" name="in_date" class="w-full border p-3 rounded-xl">
+                <input type="file" name="photo" accept="image/*" class="w-full border p-2 rounded-xl">
+                
+                <div class="flex gap-2">
+                    <button type="button" onclick="saveFarm()" class="flex-1 bg-green-600 text-white py-3 rounded-xl">儲存</button>
+                    <button type="button" onclick="hideModal('addFarmModal')" class="flex-1 bg-gray-200 py-3 rounded-xl">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         let currentPage = 1;
         let totalPages = 1;
-        let isLoading = false;
+        let currentSearch = '';
+        let searchTimeout;
 
-        async function loadFirstPage() {
+        function debounceSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                currentSearch = document.getElementById('search-input').value;
+                currentPage = 1;
+                loadBatches();
+            }, 500);
+        }
+
+        function clearSearch() {
+            document.getElementById('search-input').value = '';
+            currentSearch = '';
             currentPage = 1;
-            await loadBatches();
+            loadBatches();
         }
 
         async function loadBatches() {
-            if (isLoading) return;
-            
-            isLoading = true;
             document.getElementById('loading').classList.remove('hidden');
             
             try {
-                const res = await fetch(`/api/farms?page=${currentPage}&limit=5`);
+                let url = `/api/farms?page=${currentPage}&limit=5`;
+                if (currentSearch) {
+                    url += `&search=${encodeURIComponent(currentSearch)}`;
+                }
+                
+                const res = await fetch(url);
                 const data = await res.json();
                 
                 totalPages = data.pagination.total_pages;
-                renderBatches(data.farms);
+                
+                // 顯示搜尋統計
+                const statsDiv = document.getElementById('search-stats');
+                if (currentSearch) {
+                    statsDiv.classList.remove('hidden');
+                    statsDiv.innerHTML = `找到 ${data.pagination.total_items} 筆符合「${currentSearch}」的資料`;
+                } else {
+                    statsDiv.classList.add('hidden');
+                }
+                
+                renderBatchesByMonth(data.farms);
                 renderPagination();
                 
             } catch (e) {
                 console.error('載入失敗:', e);
             } finally {
-                isLoading = false;
                 document.getElementById('loading').classList.add('hidden');
             }
         }
 
-        function renderBatches(farms) {
+        function renderBatchesByMonth(farms) {
             const container = document.getElementById('batches-list');
-            container.innerHTML = farms.map(farm => `
-                <div class="bg-white rounded-2xl p-4 shadow">
-                    <div class="flex justify-between">
-                        <h3 class="text-lg font-bold">${farm.batch_number}</h3>
-                        <button onclick="deleteFarm('${farm.id}')" class="text-red-500">刪除</button>
+            container.innerHTML = '';
+            
+            // 依月份分組
+            const groups = {};
+            farms.forEach(farm => {
+                if (farm.in_date) {
+                    const date = new Date(farm.in_date);
+                    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    if (!groups[monthKey]) groups[monthKey] = [];
+                    groups[monthKey].push(farm);
+                } else {
+                    if (!groups['無日期']) groups['無日期'] = [];
+                    groups['無日期'].push(farm);
+                }
+            });
+            
+            // 排序月份
+            const sortedMonths = Object.keys(groups).sort().reverse();
+            
+            sortedMonths.forEach(month => {
+                const monthDiv = document.createElement('div');
+                monthDiv.className = 'month-divider';
+                monthDiv.textContent = month === '無日期' ? '📅 無日期' : `📅 ${month} 入庫`;
+                container.appendChild(monthDiv);
+                
+                groups[month].forEach(farm => {
+                    container.appendChild(createFarmCard(farm));
+                });
+            });
+        }
+
+        function createFarmCard(farm) {
+            const card = document.createElement('div');
+            card.className = 'bg-white rounded-2xl p-4 shadow mb-3';
+            
+            card.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="font-bold text-lg">🏠 ${farm.batch_number || '未命名存放區'}</span>
+                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">${farm.plant_name || '未填'}</span>
+                        </div>
+                        <div class="grid grid-cols-4 gap-4 text-sm">
+                            <div>
+                                <span class="text-gray-400">初始</span>
+                                <span class="font-bold ml-1">${farm.initial_quantity}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">目前</span>
+                                <span class="font-bold text-green-600 ml-1">${farm.quantity}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">已出貨</span>
+                                <span class="font-bold text-purple-600 ml-1">${farm.total_shipped || 0}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400">進貨</span>
+                                <span class="ml-1">${farm.in_date || '無'}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="grid grid-cols-4 gap-2 mt-2">
-                        <div>初始: ${farm.initial_quantity}</div>
-                        <div>庫存: ${farm.quantity}</div>
-                        <div>已出貨: ${farm.total_shipped || 0}</div>
-                        <div>進貨: ${farm.in_date || '無'}</div>
-                    </div>
-                    <div class="flex gap-2 mt-3">
-                        <button onclick="showGrowthModal('${farm.id}')" class="bg-blue-500 text-white px-3 py-1 rounded">+生長</button>
-                        <button onclick="showShipmentModal('${farm.id}')" class="bg-purple-500 text-white px-3 py-1 rounded">+出貨</button>
-                    </div>
+                    <button onclick="deleteFarm('${farm.id}')" class="text-red-500 hover:text-red-700">✕</button>
                 </div>
-            `).join('');
+                <div class="flex gap-2 mt-4">
+                    <button onclick="showGrowthModal('${farm.id}')" class="bg-blue-500 text-white px-3 py-1 rounded-full text-sm">+生長</button>
+                    <button onclick="showShipmentModal('${farm.id}')" class="bg-purple-500 text-white px-3 py-1 rounded-full text-sm">+出貨</button>
+                </div>
+            `;
+            
+            return card;
         }
 
         function renderPagination() {
@@ -128,7 +265,49 @@
             await loadBatches();
         }
 
-        // ... 其他 Modal 和 CRUD 函數保持不變 ...
+        // Modal 控制
+        function showModal(id) { document.getElementById(id).classList.add('show'); }
+        function hideModal(id) { document.getElementById(id).classList.remove('show'); }
+        
+        function showAddFarmModal() {
+            document.getElementById('addFarmForm').reset();
+            showModal('addFarmModal');
+        }
+
+        // 儲存新增
+        async function saveFarm() {
+            const form = document.getElementById('addFarmForm');
+            const formData = new FormData(form);
+            
+            try {
+                const res = await fetch('/api/add_farm', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (res.ok) {
+                    alert('✅ 新增成功');
+                    hideModal('addFarmModal');
+                    loadBatches();
+                }
+            } catch (e) {
+                alert('❌ 失敗');
+            }
+        }
+
+        // 刪除
+        async function deleteFarm(id) {
+            if (!confirm('確定刪除？')) return;
+            try {
+                await fetch(`/api/delete_farm/${id}`, { method: 'DELETE' });
+                loadBatches();
+            } catch (e) {
+                alert('❌ 刪除失敗');
+            }
+        }
+
+        // 初始化
+        window.onload = loadBatches;
     </script>
 </body>
 </html>
