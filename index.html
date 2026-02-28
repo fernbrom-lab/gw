@@ -159,6 +159,20 @@
             padding-bottom: 0.5rem;
             border-bottom: 2px solid rgba(46, 125, 50, 0.3);
         }
+
+        .search-stats {
+            font-size: 0.9rem;
+            color: #2e6b3e;
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+            font-size: 1.1rem;
+        }
     </style>
 </head>
 <body class="p-4">
@@ -175,7 +189,7 @@
             </div>
         </div>
 
-        <!-- 統計卡片 - 只保留兩個 -->
+        <!-- 統計卡片 - 只保留兩個，移除 kg 單位 -->
         <div class="grid grid-cols-2 gap-4 mb-6">
             <!-- 正在照顧 -->
             <div class="stat-card">
@@ -183,19 +197,22 @@
                 <div class="stat-label">正在照顧</div>
             </div>
             
-            <!-- 累積吸收 -->
+            <!-- 累積吸收 - 移除 kg -->
             <div class="stat-card">
                 <div class="stat-value text-blue-600" id="total-carbon">0</div>
-                <div class="stat-label">累積吸收 (kg)</div>
+                <div class="stat-label">累積吸收</div>
             </div>
         </div>
 
         <!-- 查詢輸入框 -->
-        <div class="mb-6">
+        <div class="mb-4">
             <input type="text" id="search-input" class="search-box" 
                    placeholder="🔍 輸入植物名稱查詢..." 
                    oninput="debounceSearch()">
         </div>
+
+        <!-- 查詢結果統計 -->
+        <div id="search-stats" class="search-stats hidden"></div>
 
         <!-- 批次列表 -->
         <div id="batches-container" class="space-y-4"></div>
@@ -217,6 +234,7 @@
     </div>
 
     <script>
+        // 全域變數
         let currentPage = 1;
         let totalPages = 1;
         let isLoading = false;
@@ -224,24 +242,25 @@
         let searchTimeout;
         let allFarms = [];
 
-        // 防抖查詢
+        // 防抖查詢 - 連接到資料庫
         function debounceSearch() {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
                 currentSearch = document.getElementById('search-input').value;
                 currentPage = 1;
-                loadFarms(true);
+                loadFarms(false);
             }, 500);
         }
 
-        // 載入統計摘要
+        // 載入統計摘要 - 從資料庫取得
         async function loadSummary() {
             try {
                 const res = await fetch('/api/summary');
+                if (!res.ok) throw new Error('無法載入統計');
                 const data = await res.json();
                 
-                document.getElementById('total-plants').textContent = data.total_plants;
-                document.getElementById('total-carbon').textContent = data.total_carbon_kg + ' kg';
+                document.getElementById('total-plants').textContent = data.total_plants || 0;
+                document.getElementById('total-carbon').textContent = data.total_carbon_kg || 0;
             } catch (e) {
                 console.error('載入統計失敗:', e);
             }
@@ -255,7 +274,7 @@
             }
         }
 
-        // 載入批次資料
+        // 載入批次資料 - 從資料庫查詢
         async function loadFarms(isAppend = false) {
             if (isLoading) return;
             
@@ -264,15 +283,27 @@
             document.getElementById('load-more-btn').disabled = true;
             
             try {
+                // 建立查詢 URL，包含搜尋關鍵字
                 let url = `/api/farms?page=${currentPage}&limit=5`;
                 if (currentSearch) {
                     url += `&search=${encodeURIComponent(currentSearch)}`;
                 }
                 
                 const res = await fetch(url);
+                if (!res.ok) throw new Error('無法載入資料');
+                
                 const data = await res.json();
                 
                 totalPages = data.pagination.total_pages;
+                
+                // 顯示搜尋統計
+                const statsDiv = document.getElementById('search-stats');
+                if (currentSearch) {
+                    statsDiv.classList.remove('hidden');
+                    statsDiv.innerHTML = `找到 ${data.pagination.total_items} 筆符合「${currentSearch}」的植物`;
+                } else {
+                    statsDiv.classList.add('hidden');
+                }
                 
                 if (!isAppend) {
                     allFarms = data.farms;
@@ -281,8 +312,17 @@
                     allFarms = [...allFarms, ...data.farms];
                 }
                 
-                renderFarmsByMonth(allFarms);
+                if (allFarms.length === 0) {
+                    document.getElementById('batches-container').innerHTML = `
+                        <div class="no-results">
+                            🌱 沒有找到符合的植物
+                        </div>
+                    `;
+                } else {
+                    renderFarmsByMonth(allFarms);
+                }
                 
+                // 顯示/隱藏載入更多按鈕
                 const loadMoreContainer = document.getElementById('load-more-container');
                 if (currentPage < totalPages) {
                     loadMoreContainer.classList.remove('hidden');
@@ -292,6 +332,11 @@
                 
             } catch (e) {
                 console.error('載入失敗:', e);
+                document.getElementById('batches-container').innerHTML = `
+                    <div class="no-results">
+                        ❌ 載入失敗，請稍後再試
+                    </div>
+                `;
             } finally {
                 isLoading = false;
                 document.getElementById('loading-spinner').classList.add('hidden');
@@ -320,6 +365,11 @@
             
             // 排序月份（新的在前）
             const sortedMonths = Object.keys(groups).sort().reverse();
+            
+            if (sortedMonths.length === 0) {
+                container.innerHTML = '<div class="no-results">🌱 沒有植物資料</div>';
+                return;
+            }
             
             sortedMonths.forEach(month => {
                 const monthDiv = document.createElement('div');
@@ -379,7 +429,7 @@
                                     <span class="text-xs text-gray-500">±20%</span>
                                 </div>
                                 <div class="text-lg font-bold text-green-700">
-                                    ${farm.carbon_absorption.value} kg
+                                    ${farm.carbon_absorption.value}
                                 </div>
                             </div>
                         ` : ''}
@@ -400,6 +450,7 @@
             return card;
         }
 
+        // 輔助函數
         function formatDate(dateStr) {
             if (!dateStr) return '無日期';
             try {
@@ -421,7 +472,7 @@
             }
         }
 
-        // 初始化
+        // 初始化 - 同時載入統計和第一批資料
         window.onload = async function() {
             await loadSummary();
             await loadFarms(false);
