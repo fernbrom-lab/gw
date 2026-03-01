@@ -105,6 +105,18 @@
             background: #2e7d32;
             color: white;
         }
+        .form-section {
+            background: #f9fafb;
+            border-radius: 1rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .form-section-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #2e7d32;
+            margin-bottom: 0.75rem;
+        }
     </style>
 </head>
 <body class="p-4 bg-gray-50">
@@ -116,7 +128,7 @@
                      onerror="this.style.display='none'">
                 <h1 class="text-2xl font-black text-green-800">蕨積碳足跡 - 後台管理</h1>
             </div>
-            <a href="/" target="_blank" class="bg-gray-200 px-4 py-2 rounded-full text-sm hover:bg-gray-300">
+            <a href="/" target="_blank" class="bg-gray-200 px-4 py-2 rounded-full text-sm hover:bg-gray-300 transition">
                 前往前台
             </a>
         </div>
@@ -153,53 +165,82 @@
         </div>
     </div>
 
-    <!-- 新增批次 Modal -->
+    <!-- 新增批次 Modal - 補回來源欄位 -->
     <div id="addFarmModal" class="modal items-center justify-center">
         <div class="modal-content bg-white p-6 rounded-2xl max-w-md w-full">
-            <h2 class="text-xl font-bold mb-4">新增植物批次</h2>
-            <form id="addFarmForm" class="space-y-3">
-                <!-- 存放區名稱 -->
-                <input type="text" name="batch_number" placeholder="存放區名稱 *" required 
-                       class="w-full border p-3 rounded-xl focus:ring-2 focus:ring-green-200">
-                
-                <!-- 品種名稱 -->
-                <input type="text" name="plant_name" placeholder="品種名稱" 
-                       class="w-full border p-3 rounded-xl focus:ring-2 focus:ring-green-200">
-                
-                <!-- 植物類型 -->
-                <select name="plant_type" class="w-full border p-3 rounded-xl focus:ring-2 focus:ring-green-200">
-                    <option value="鹿角蕨">🦌 鹿角蕨</option>
-                    <option value="積水鳳梨">🍍 積水鳳梨</option>
-                    <option value="其他" selected>🌿 其他</option>
-                </select>
-                
-                <!-- 植物大小 -->
-                <select name="plant_size" class="w-full border p-3 rounded-xl focus:ring-2 focus:ring-green-200">
-                    <option value="small">🌱 小</option>
-                    <option value="medium" selected>🌿 中</option>
-                    <option value="large">🌳 大</option>
-                </select>
-                
-                <!-- 數量 -->
-                <input type="number" name="quantity" placeholder="數量" required 
-                       class="w-full border p-3 rounded-xl focus:ring-2 focus:ring-green-200">
-                
-                <!-- 進貨日期 -->
-                <input type="date" name="in_date" 
-                       class="w-full border p-3 rounded-xl focus:ring-2 focus:ring-green-200">
-                
-                <!-- 照片上傳 -->
-                <input type="file" name="photo" accept="image/*" 
-                       class="w-full border p-2 rounded-xl file:mr-3 file:bg-green-100 file:text-green-800 file:border-0 file:rounded-lg">
-                
-                <div class="flex gap-2 pt-2">
+            <h2 class="text-xl font-bold mb-4 text-green-800">🌱 新增植物批次</h2>
+            <form id="addFarmForm" class="space-y-4">
+                <!-- 基本資訊區塊 -->
+                <div class="form-section">
+                    <div class="form-section-title">📋 基本資訊</div>
+                    <!-- 存放區名稱 -->
+                    <input type="text" name="batch_number" placeholder="存放區名稱 *" required 
+                           class="w-full border p-3 rounded-xl mb-3 focus:ring-2 focus:ring-green-200">
+                    
+                    <!-- 品種名稱 -->
+                    <input type="text" name="plant_name" placeholder="品種名稱" 
+                           class="w-full border p-3 rounded-xl mb-3 focus:ring-2 focus:ring-green-200">
+                    
+                    <!-- 來源（補回的欄位） -->
+                    <input type="text" name="supplier" placeholder="來源/供應商" 
+                           class="w-full border p-3 rounded-xl focus:ring-2 focus:ring-green-200">
+                </div>
+
+                <!-- 植物特性區塊 -->
+                <div class="form-section">
+                    <div class="form-section-title">🌿 植物特性</div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <!-- 植物類型 -->
+                        <select name="plant_type" class="border p-3 rounded-xl focus:ring-2 focus:ring-green-200">
+                            <option value="鹿角蕨">🦌 鹿角蕨</option>
+                            <option value="積水鳳梨">🍍 積水鳳梨</option>
+                            <option value="其他" selected>🌿 其他</option>
+                        </select>
+                        
+                        <!-- 植物大小 -->
+                        <select name="plant_size" class="border p-3 rounded-xl focus:ring-2 focus:ring-green-200">
+                            <option value="small">🌱 小</option>
+                            <option value="medium" selected>🌿 中</option>
+                            <option value="large">🌳 大</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 數量與日期區塊 -->
+                <div class="form-section">
+                    <div class="form-section-title">📊 數量與日期</div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <!-- 數量 -->
+                        <input type="number" name="quantity" placeholder="數量 *" required 
+                               class="border p-3 rounded-xl focus:ring-2 focus:ring-green-200">
+                        
+                        <!-- 進貨日期 -->
+                        <input type="date" name="in_date" 
+                               class="border p-3 rounded-xl focus:ring-2 focus:ring-green-200">
+                    </div>
+                </div>
+
+                <!-- 備註區塊 -->
+                <div class="form-section">
+                    <div class="form-section-title">📝 備註與照片</div>
+                    <!-- 備註 -->
+                    <textarea name="notes" placeholder="備註（例如：植株狀況、特殊照顧需求等）" 
+                              class="w-full border p-3 rounded-xl mb-3 focus:ring-2 focus:ring-green-200" rows="2"></textarea>
+                    
+                    <!-- 照片上傳 -->
+                    <input type="file" name="photo" accept="image/*" 
+                           class="w-full border p-2 rounded-xl file:mr-3 file:bg-green-100 file:text-green-800 file:border-0 file:rounded-lg">
+                </div>
+
+                <!-- 按鈕區塊 -->
+                <div class="flex gap-2 pt-4 border-t">
                     <button type="button" onclick="saveFarm()" 
-                            class="flex-1 bg-green-600 text-white py-3 rounded-xl hover:bg-green-700 transition">
-                        儲存
+                            class="flex-1 bg-green-600 text-white py-3 rounded-xl hover:bg-green-700 transition font-bold">
+                        ✅ 儲存批次
                     </button>
                     <button type="button" onclick="hideModal('addFarmModal')" 
-                            class="flex-1 bg-gray-200 py-3 rounded-xl hover:bg-gray-300 transition">
-                        取消
+                            class="flex-1 bg-gray-200 py-3 rounded-xl hover:bg-gray-300 transition font-bold">
+                        ✕ 取消
                     </button>
                 </div>
             </form>
@@ -209,7 +250,7 @@
     <!-- 生長紀錄 Modal -->
     <div id="growthModal" class="modal items-center justify-center">
         <div class="modal-content bg-white p-6 rounded-2xl max-w-md w-full">
-            <h2 class="text-xl font-bold mb-4">📸 新增生長紀錄</h2>
+            <h2 class="text-xl font-bold mb-4 text-blue-600">📸 新增生長紀錄</h2>
             <form id="growthForm" class="space-y-3">
                 <input type="hidden" id="growth_farm_id" name="farm_id">
                 
@@ -222,7 +263,7 @@
                 
                 <!-- 照片上傳 -->
                 <input type="file" name="photo" accept="image/*" 
-                       class="w-full border p-2 rounded-xl file:mr-3 file:bg-green-100 file:text-green-800 file:border-0 file:rounded-lg">
+                       class="w-full border p-2 rounded-xl file:mr-3 file:bg-blue-100 file:text-blue-800 file:border-0 file:rounded-lg">
                 
                 <div class="flex gap-2 pt-2">
                     <button type="button" onclick="saveGrowthRecord()" 
@@ -241,7 +282,7 @@
     <!-- 出貨 Modal -->
     <div id="shipmentModal" class="modal items-center justify-center">
         <div class="modal-content bg-white p-6 rounded-2xl max-w-md w-full">
-            <h2 class="text-xl font-bold mb-4">📦 新增出貨</h2>
+            <h2 class="text-xl font-bold mb-4 text-purple-600">📦 新增出貨</h2>
             <form id="shipmentForm" class="space-y-3">
                 <input type="hidden" id="shipment_farm_id" name="farm_id">
                 
@@ -424,7 +465,7 @@
                             </span>
                         </div>
                         
-                        <div class="grid grid-cols-4 gap-3 text-sm mb-4">
+                        <div class="grid grid-cols-5 gap-2 text-sm mb-4">
                             <div>
                                 <div class="text-gray-400 text-xs">初始</div>
                                 <div class="font-bold">${farm.initial_quantity}</div>
@@ -440,6 +481,10 @@
                             <div>
                                 <div class="text-gray-400 text-xs">進貨</div>
                                 <div class="text-sm">${formatDate(farm.in_date)}</div>
+                            </div>
+                            <div>
+                                <div class="text-gray-400 text-xs">來源</div>
+                                <div class="text-sm truncate" title="${farm.supplier || '無'}">${farm.supplier || '無'}</div>
                             </div>
                         </div>
                         
