@@ -61,6 +61,12 @@
             font-weight: 500;
         }
         
+        .stat-unit {
+            font-size: 1rem;
+            color: #4a7a4a;
+            margin-left: 0.25rem;
+        }
+        
         .progress-bar {
             background: linear-gradient(90deg, #2e7d32, #4caf50);
         }
@@ -109,19 +115,61 @@
             color: #2e6b3e;
         }
 
+        /* 搜尋框容器 */
+        .search-container {
+            position: relative;
+            width: 100%;
+            margin-bottom: 1.5rem;
+        }
+        
         .search-box {
             background: white;
             border: 2px solid #4caf50;
-            border-radius: 2rem;
-            padding: 0.75rem 1.5rem;
+            border-radius: 3rem;
+            padding: 1rem 1.5rem 1rem 3rem;
             width: 100%;
             font-size: 1rem;
             outline: none;
+            box-shadow: 0 4px 6px rgba(0,40,0,0.1);
         }
         
         .search-box:focus {
             border-color: #2e7d32;
             box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.2);
+        }
+        
+        /* 搜尋圖示 */
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.2rem;
+            color: #4caf50;
+            pointer-events: none;
+        }
+        
+        /* 清除搜尋按鈕 */
+        .clear-search {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #e5e7eb;
+            border: none;
+            border-radius: 50%;
+            width: 1.5rem;
+            height: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1rem;
+            color: #4b5563;
+        }
+        
+        .clear-search:hover {
+            background: #d1d5db;
         }
 
         .loading-spinner {
@@ -149,6 +197,12 @@
             margin: 1rem auto;
             display: inline-block;
             cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .load-more-btn:hover {
+            background: #2e7d32;
+            color: white;
         }
         
         .month-divider {
@@ -158,13 +212,28 @@
             margin: 1.5rem 0 1rem 0;
             padding-bottom: 0.5rem;
             border-bottom: 2px solid rgba(46, 125, 50, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .month-count {
+            font-size: 0.9rem;
+            color: #4a7a4a;
+            background: rgba(70, 130, 70, 0.1);
+            padding: 0.2rem 0.8rem;
+            border-radius: 2rem;
         }
 
         .search-stats {
             font-size: 0.9rem;
             color: #2e6b3e;
             margin-top: 0.5rem;
+            margin-bottom: 1rem;
             text-align: center;
+            padding: 0.5rem;
+            background: rgba(70, 130, 70, 0.1);
+            border-radius: 2rem;
         }
 
         .no-results {
@@ -189,7 +258,7 @@
             </div>
         </div>
 
-        <!-- 統計卡片 - 只保留兩個，移除 kg 單位 -->
+        <!-- 統計卡片 - 加入單位標示 -->
         <div class="grid grid-cols-2 gap-4 mb-6">
             <!-- 正在照顧 -->
             <div class="stat-card">
@@ -197,18 +266,20 @@
                 <div class="stat-label">顆正在照顧</div>
             </div>
             
-            <!-- 累積吸收 - 移除 kg -->
+            <!-- 累積吸收 - 加入 kg 單位 -->
             <div class="stat-card">
                 <div class="stat-value text-blue-600" id="total-carbon">0</div>
-                <div class="stat-label">累積吸收碳Kg</div>
+                <div class="stat-label">累積吸收<span class="stat-unit">kg</span></div>
             </div>
         </div>
 
-        <!-- 查詢輸入框 -->
-        <div class="mb-4">
+        <!-- 即時查詢輸入框（不需按Enter） -->
+        <div class="search-container">
+            <span class="search-icon">🔍</span>
             <input type="text" id="search-input" class="search-box" 
-                   placeholder="🔍 輸入植物名稱查詢..." 
-                   oninput="debounceSearch()">
+                   placeholder="輸入植物名稱即時查詢..." 
+                   oninput="handleSearchInput()">
+            <button id="clear-search-btn" class="clear-search hidden" onclick="clearSearch()">✕</button>
         </div>
 
         <!-- 查詢結果統計 -->
@@ -230,7 +301,7 @@
         <!-- 頁尾說明 -->
         <div class="mt-8 text-[10px] text-green-700/40 text-center border-t border-green-200/50 pt-4">
             <p>🌱 每一天的養護，都在增加對地球的貢獻</p>
-            <p class="mt-1">係數來源：農業部農業試驗所 | 不確定範圍 ±20% (ISO 14064-1)</p>
+             <p class="mt-1">係數來源：農業部農業試驗所 | 不確定範圍 ±20% (ISO 14064-1)</p>
         </div>
     </div>
 
@@ -243,17 +314,39 @@
         let searchTimeout;
         let allFarms = [];
 
-        // 防抖查詢 - 連接到資料庫
-        function debounceSearch() {
+        // ========== 即時搜尋處理 ==========
+        function handleSearchInput() {
+            const searchInput = document.getElementById('search-input');
+            const clearBtn = document.getElementById('clear-search-btn');
+            
+            // 顯示/隱藏清除按鈕
+            if (searchInput.value.length > 0) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+            
+            // 清除之前的 timeout
             clearTimeout(searchTimeout);
+            
+            // 設定新的 timeout - 300ms 後執行搜尋
             searchTimeout = setTimeout(() => {
-                currentSearch = document.getElementById('search-input').value;
+                currentSearch = searchInput.value;
                 currentPage = 1;
                 loadFarms(false);
-            }, 500);
+            }, 300);
         }
 
-        // 載入統計摘要 - 從資料庫取得
+        // 清除搜尋
+        function clearSearch() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('clear-search-btn').classList.add('hidden');
+            currentSearch = '';
+            currentPage = 1;
+            loadFarms(false);
+        }
+
+        // ========== 載入統計摘要 ==========
         async function loadSummary() {
             try {
                 const res = await fetch('/api/summary');
@@ -267,7 +360,7 @@
             }
         }
 
-        // 載入下一頁
+        // ========== 載入下一頁 ==========
         async function loadNextPage() {
             if (currentPage < totalPages && !isLoading) {
                 currentPage++;
@@ -275,7 +368,7 @@
             }
         }
 
-        // 載入批次資料 - 從資料庫查詢
+        // ========== 載入批次資料 ==========
         async function loadFarms(isAppend = false) {
             if (isLoading) return;
             
@@ -284,7 +377,6 @@
             document.getElementById('load-more-btn').disabled = true;
             
             try {
-                // 建立查詢 URL，包含搜尋關鍵字
                 let url = `/api/farms?page=${currentPage}&limit=5`;
                 if (currentSearch) {
                     url += `&search=${encodeURIComponent(currentSearch)}`;
@@ -301,7 +393,11 @@
                 const statsDiv = document.getElementById('search-stats');
                 if (currentSearch) {
                     statsDiv.classList.remove('hidden');
-                    statsDiv.innerHTML = `找到 ${data.pagination.total_items} 筆符合「${currentSearch}」的植物`;
+                    if (data.pagination.total_items === 0) {
+                        statsDiv.innerHTML = `🔍 沒有找到「${currentSearch}」的植物`;
+                    } else {
+                        statsDiv.innerHTML = `🔍 找到 ${data.pagination.total_items} 筆「${currentSearch}」的植物`;
+                    }
                 } else {
                     statsDiv.classList.add('hidden');
                 }
@@ -313,10 +409,16 @@
                     allFarms = [...allFarms, ...data.farms];
                 }
                 
-                if (allFarms.length === 0) {
+                if (allFarms.length === 0 && !currentSearch) {
                     document.getElementById('batches-container').innerHTML = `
                         <div class="no-results">
-                            🌱 沒有找到符合的植物
+                            🌱 還沒有植物資料，請等待第一株植物入庫
+                        </div>
+                    `;
+                } else if (allFarms.length === 0 && currentSearch) {
+                    document.getElementById('batches-container').innerHTML = `
+                        <div class="no-results">
+                            🌱 沒有找到符合「${currentSearch}」的植物
                         </div>
                     `;
                 } else {
@@ -345,7 +447,7 @@
             }
         }
 
-        // 依照入庫月份分組渲染
+        // ========== 依照入庫月份分組渲染 ==========
         function renderFarmsByMonth(farms) {
             const container = document.getElementById('batches-container');
             container.innerHTML = '';
@@ -367,15 +469,13 @@
             // 排序月份（新的在前）
             const sortedMonths = Object.keys(groups).sort().reverse();
             
-            if (sortedMonths.length === 0) {
-                container.innerHTML = '<div class="no-results">🌱 沒有植物資料</div>';
-                return;
-            }
-            
             sortedMonths.forEach(month => {
                 const monthDiv = document.createElement('div');
                 monthDiv.className = 'month-divider';
-                monthDiv.textContent = month === '無日期' ? '📅 無日期' : `📅 ${month} 入庫`;
+                monthDiv.innerHTML = `
+                    <span>📅 ${month === '無日期' ? '無日期' : month + ' 入庫'}</span>
+                    <span class="month-count">${groups[month].length} 筆</span>
+                `;
                 container.appendChild(monthDiv);
                 
                 groups[month].forEach(farm => {
@@ -384,7 +484,7 @@
             });
         }
 
-        // 建立單一卡片
+        // ========== 建立單一卡片 ==========
         function createFarmCard(farm) {
             const card = document.createElement('div');
             card.className = 'card';
@@ -430,7 +530,7 @@
                                     <span class="text-xs text-gray-500">±20%</span>
                                 </div>
                                 <div class="text-lg font-bold text-green-700">
-                                    ${farm.carbon_absorption.value}
+                                    ${farm.carbon_absorption.value} kg
                                 </div>
                             </div>
                         ` : ''}
@@ -451,7 +551,7 @@
             return card;
         }
 
-        // 輔助函數
+        // ========== 輔助函數 ==========
         function formatDate(dateStr) {
             if (!dateStr) return '無日期';
             try {
@@ -473,7 +573,7 @@
             }
         }
 
-        // 初始化 - 同時載入統計和第一批資料
+        // ========== 初始化 ==========
         window.onload = async function() {
             await loadSummary();
             await loadFarms(false);
