@@ -3,6 +3,7 @@ import uuid
 from flask import Flask, request, jsonify, send_from_directory
 from supabase import create_client
 from flask_cors import CORS
+
 from datetime import datetime, date
 
 app = Flask(__name__, static_folder='.')
@@ -417,7 +418,44 @@ def delete_farm(farm_id):
         return jsonify({"status": "ok"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
+# ========== 更新批次 ==========
+@app.route('/api/update_farm/<farm_id>', methods=['PUT'])
+def update_farm(farm_id):
+    try:
+        data = request.json
+        
+        # 檢查批次是否存在
+        check = supabase.table("farms").select("*").eq("id", farm_id).execute()
+        if not check.data:
+            return jsonify({"error": "找不到該批次"}), 404
+        
+        # 更新資料
+        update_data = {
+            "batch_number": data.get('batch_number'),
+            "plant_name": data.get('plant_name'),
+            "plant_type": data.get('plant_type'),
+            "plant_size": data.get('plant_size'),
+            "initial_quantity": data.get('initial_quantity'),
+            "in_date": data.get('in_date'),
+            "supplier": data.get('supplier'),
+            "notes": data.get('notes')
+        }
+        
+        # 重新計算當前庫存（初始數量 - 已出貨）
+        shipments_res = supabase.table("farm_shipments")\
+            .select("quantity")\
+            .eq("farm_id", farm_id)\
+            .execute()
+        total_shipped = sum(s.get('quantity', 0) for s in shipments_res.data)
+        
+        update_data["quantity"] = data.get('initial_quantity') - total_shipped
+        
+        result = supabase.table("farms").update(update_data).eq("id", farm_id).execute()
+        
+        return jsonify({"status": "ok", "data": result.data})
+    except Exception as e:
+        print(f"更新錯誤: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 # ========== 測試連線 ==========
 @app.route('/api/test', methods=['GET'])
 def test():
