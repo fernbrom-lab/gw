@@ -1,5 +1,8 @@
 import os
 import uuid
+import base64
+import json
+import urllib.request
 from flask import Flask, request, jsonify, send_from_directory
 from supabase import create_client
 from flask_cors import CORS
@@ -100,6 +103,67 @@ def calculate_carbon_absorption(plant_type, plant_size, quantity, in_date, curre
         "final_factor": round(final_factor, 3)
     }
 
+# ========== 植物辨識 API ==========
+@app.route('/api/identify', methods=['POST'])
+def identify_plant():
+    try:
+        data = request.get_json()
+        image_base64 = data.get('imageBase64')
+        mime_type = data.get('mimeType', 'image/jpeg')
+
+        if not image_base64:
+            return jsonify({"error": "缺少圖片資料"}), 400
+
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            return jsonify({"error": "伺服器未設定 API Key"}), 500
+
+        prompt = '''請辨識這張照片中的植物，並以以下 JSON 格式回答（只回傳 JSON，不要有其他說明）：
+
+{
+  "name": "中文名稱（若無法辨識請填「無法辨識」）",
+  "english_name": "英文名稱",
+  "scientific_name": "學名",
+  "features": "外觀特徵描述（2-4句）",
+  "habitat": "生長環境與分布地區（2-3句）",
+  "care": "照顧方式，包含澆水、日照、施肥等建議（3-5句）",
+  "other": "其他重要資訊，例如是否有毒、可食用性、藥用價值、相似植物等（2-3句）"
+}'''
+
+        payload = json.dumps({
+            "contents": [{
+                "parts": [
+                    {"inline_data": {"mime_type": mime_type, "data": image_base64}},
+                    {"text": prompt}
+                ]
+            }],
+            "generationConfig": {"maxOutputTokens": 1000}
+        }).encode('utf-8')
+
+        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+        req = urllib.request.Request(
+            gemini_url,
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+
+        with urllib.request.urlopen(req) as resp:
+            result = json.loads(resp.read().decode('utf-8'))
+
+        text = ''.join(
+            part.get('text', '')
+            for part in result['candidates'][0]['content']['parts']
+        )
+        clean = text.replace('```json', '').replace('```', '').strip()
+        plant_info = json.loads(clean)
+
+        return jsonify(plant_info)
+
+    except Exception as e:
+        print(f"植物辨識錯誤: {str(e)}")
+        return jsonify({"error": f"辨識失敗：{str(e)}"}), 500
+
 # ========== 取得統計摘要（輕量級 API）==========
 @app.route('/api/summary', methods=['GET'])
 def get_summary():
@@ -143,18 +207,14 @@ def get_farms():
         search = request.args.get('search', '', type=str)
         offset = (page - 1) * limit
         
-        # 建立查詢
         query = supabase.table("farms").select("*", count="exact")
         
-        # 如果有搜尋關鍵字
         if search:
             query = query.or_(f"batch_number.ilike.%{search}%,plant_name.ilike.%{search}%")
         
-        # 取得總筆數
         count_result = query.execute()
         total_count = count_result.count if hasattr(count_result, 'count') else 0
         
-        # 取得分頁資料
         farms_query = supabase.table("farms")\
             .select("*")\
             .order("created_at", desc=True)\
@@ -170,7 +230,6 @@ def get_farms():
         today = date.today()
         
         for farm in farms:
-            # 取得最近3筆生長紀錄（用於前台顯示）
             growth_res = supabase.table("farm_growth_records")\
                 .select("*")\
                 .eq("farm_id", farm['id'])\
@@ -178,7 +237,6 @@ def get_farms():
                 .limit(3)\
                 .execute()
             
-            # 取得最近3筆出貨紀錄（用於前台顯示）
             shipments_res = supabase.table("farm_shipments")\
                 .select("*")\
                 .eq("farm_id", farm['id'])\
@@ -186,25 +244,21 @@ def get_farms():
                 .limit(3)\
                 .execute()
             
-            # 計算所有出貨總量
             all_shipments = supabase.table("farm_shipments")\
                 .select("quantity")\
                 .eq("farm_id", farm['id'])\
                 .execute()
             total_shipped = sum(s.get('quantity', 0) for s in all_shipments.data)
             
-            # 當前庫存
             current_quantity = farm.get('initial_quantity', 0) - total_shipped
             if current_quantity < 0:
                 current_quantity = 0
             
-            # 更新資料庫中的當前庫存
             supabase.table("farms")\
                 .update({"quantity": current_quantity})\
                 .eq("id", farm['id'])\
                 .execute()
             
-            # 計算碳吸收量
             absorption_data = None
             if current_quantity > 0 and farm.get('in_date'):
                 absorption_data = calculate_carbon_absorption(
@@ -250,7 +304,6 @@ def add_farm():
         
         quantity = int(request.form.get('quantity', 0))
         
-        # 處理照片
         photo_url = ""
         photo = request.files.get('photo')
         if photo and photo.filename:
@@ -323,26 +376,22 @@ def add_shipment():
         if quantity <= 0:
             return jsonify({"error": "出貨數量必須大於0"}), 400
         
-        # 取得該批次資訊
         farm_res = supabase.table("farms").select("initial_quantity").eq("id", farm_id).execute()
         if not farm_res.data:
             return jsonify({"error": "找不到該批次"}), 404
         
         initial = farm_res.data[0].get('initial_quantity', 0)
         
-        # 計算已出貨總量
         shipments_res = supabase.table("farm_shipments")\
             .select("quantity")\
             .eq("farm_id", farm_id)\
             .execute()
         total_shipped = sum(s.get('quantity', 0) for s in shipments_res.data)
         
-        # 檢查庫存
         available = initial - total_shipped
         if quantity > available:
             return jsonify({"error": f"庫存不足，目前可出貨 {available} 株"}), 400
         
-        # 新增出貨紀錄
         shipment_data = {
             "farm_id": farm_id,
             "shipment_date": shipment_date,
@@ -353,7 +402,6 @@ def add_shipment():
         
         result = supabase.table("farm_shipments").insert(shipment_data).execute()
         
-        # 更新庫存
         new_quantity = available - quantity
         supabase.table("farms")\
             .update({"quantity": new_quantity})\
@@ -378,7 +426,6 @@ def delete_growth_record(record_id):
 @app.route('/api/delete_shipment/<shipment_id>', methods=['DELETE'])
 def delete_shipment(shipment_id):
     try:
-        # 取得出貨紀錄
         shipment = supabase.table("farm_shipments").select("*").eq("id", shipment_id).execute()
         if not shipment.data:
             return jsonify({"error": "找不到出貨紀錄"}), 404
@@ -387,10 +434,8 @@ def delete_shipment(shipment_id):
         farm_id = s['farm_id']
         deleted_quantity = s['quantity']
         
-        # 刪除出貨紀錄
         supabase.table("farm_shipments").delete().eq("id", shipment_id).execute()
         
-        # 重新計算庫存
         shipments_res = supabase.table("farm_shipments")\
             .select("quantity")\
             .eq("farm_id", farm_id)\
@@ -418,18 +463,17 @@ def delete_farm(farm_id):
         return jsonify({"status": "ok"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 # ========== 更新批次 ==========
 @app.route('/api/update_farm/<farm_id>', methods=['PUT'])
 def update_farm(farm_id):
     try:
         data = request.json
         
-        # 檢查批次是否存在
         check = supabase.table("farms").select("*").eq("id", farm_id).execute()
         if not check.data:
             return jsonify({"error": "找不到該批次"}), 404
         
-        # 更新資料
         update_data = {
             "batch_number": data.get('batch_number'),
             "plant_name": data.get('plant_name'),
@@ -441,7 +485,6 @@ def update_farm(farm_id):
             "notes": data.get('notes')
         }
         
-        # 重新計算當前庫存（初始數量 - 已出貨）
         shipments_res = supabase.table("farm_shipments")\
             .select("quantity")\
             .eq("farm_id", farm_id)\
@@ -456,6 +499,7 @@ def update_farm(farm_id):
     except Exception as e:
         print(f"更新錯誤: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 # ========== 測試連線 ==========
 @app.route('/api/test', methods=['GET'])
 def test():
@@ -463,7 +507,7 @@ def test():
         "status": "ok", 
         "message": "系統正常運作",
         "version": "2.0",
-        "features": ["分頁", "搜尋", "月份分組", "碳計算"]
+        "features": ["分頁", "搜尋", "月份分組", "碳計算", "植物辨識"]
     })
 
 if __name__ == '__main__':
