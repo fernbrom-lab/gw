@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>植物辨識器</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Noto+Serif+TC:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --moss: #2d4a2d;
+    --sage: #6b8c5e;
+    --fern: #4a7c59;
+    --cream: #f5f0e8;
+    --bark: #8b6f47;
+    --leaf-light: #a8c89a;
+    --text-dark: #1a2e1a;
+    --text-mid: #3d5c3d;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Serif TC', serif;
+    background: var(--cream);
+    color: var(--text-dark);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(ellipse at 20% 20%, rgba(107,140,94,0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(45,74,45,0.06) 0%, transparent 50%),
+      url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%236b8c5e' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  header { text-align: center; margin-bottom: 48px; }
+
+  .header-ornament {
+    font-size: 13px;
+    letter-spacing: 0.4em;
+    color: var(--sage);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+  }
+  .header-ornament::before,
+  .header-ornament::after {
+    content: '';
+    height: 1px;
+    width: 60px;
+    background: linear-gradient(to right, transparent, var(--sage));
+  }
+  .header-ornament::after {
+    background: linear-gradient(to left, transparent, var(--sage));
+  }
+
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.4rem, 5vw, 3.6rem);
+    color: var(--moss);
+    line-height: 1.1;
+    margin-bottom: 12px;
+  }
+  h1 em { font-style: italic; color: var(--fern); }
+
+  .subtitle { font-size: 0.95rem; color: var(--text-mid); letter-spacing: 0.05em; font-weight: 300; }
+
+  .upload-area {
+    border: 2px dashed rgba(107,140,94,0.4);
+    border-radius: 16px;
+    padding: 48px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: white;
+    margin-bottom: 24px;
+  }
+  .upload-area:hover, .upload-area.dragover {
+    border-color: var(--fern);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(74,124,89,0.15);
+  }
+
+  .upload-icon { font-size: 56px; margin-bottom: 16px; display: block; }
+  .upload-text { font-family: 'Playfair Display', serif; font-size: 1.2rem; color: var(--moss); margin-bottom: 8px; }
+  .upload-hint { font-size: 0.85rem; color: var(--sage); }
+  #fileInput { display: none; }
+
+  .preview-container { display: none; margin-bottom: 24px; position: relative; }
+  .preview-container.show { display: block; }
+
+  .preview-img {
+    width: 100%; max-height: 380px; object-fit: contain;
+    border-radius: 12px; border: 1px solid rgba(107,140,94,0.2);
+    box-shadow: 0 4px 24px rgba(45,74,45,0.1); background: white; display: block;
+  }
+
+  .preview-clear {
+    position: absolute; top: 12px; right: 12px;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(0,0,0,0.5); color: white; border: none;
+    cursor: pointer; font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  .preview-clear:hover { background: rgba(0,0,0,0.7); }
+
+  .btn-identify {
+    width: 100%; padding: 16px 32px;
+    background: linear-gradient(135deg, var(--moss) 0%, var(--fern) 100%);
+    color: var(--cream); border: none; border-radius: 12px;
+    font-family: 'Playfair Display', serif; font-size: 1.1rem;
+    letter-spacing: 0.05em; cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 16px rgba(45,74,45,0.3);
+    margin-bottom: 32px;
+  }
+  .btn-identify:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(45,74,45,0.4);
+    filter: brightness(1.1);
+  }
+  .btn-identify:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .loading { display: none; text-align: center; padding: 48px 32px; }
+  .loading.show { display: block; }
+
+  .leaf-spinner {
+    font-size: 48px; display: inline-block;
+    animation: spin-leaf 1.5s ease-in-out infinite; margin-bottom: 16px;
+  }
+  @keyframes spin-leaf {
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(180deg) scale(1.1); }
+    100% { transform: rotate(360deg) scale(1); }
+  }
+
+  .loading-text { font-family: 'Playfair Display', serif; font-style: italic; color: var(--fern); font-size: 1.05rem; }
+
+  .result-card {
+    display: none; background: white; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 8px 40px rgba(45,74,45,0.12);
+    border: 1px solid rgba(107,140,94,0.15);
+    animation: fadeUp 0.5s ease;
+  }
+  .result-card.show { display: block; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-header {
+    background: linear-gradient(135deg, var(--moss) 0%, var(--fern) 100%);
+    padding: 28px 32px; position: relative; overflow: hidden;
+  }
+  .result-header::after {
+    content: '🌿'; position: absolute; right: 24px; top: 50%;
+    transform: translateY(-50%); font-size: 64px; opacity: 0.15;
+  }
+
+  .result-tag { font-size: 0.75rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--leaf-light); margin-bottom: 6px; }
+  .result-name { font-family: 'Playfair Display', serif; font-size: 1.8rem; color: white; font-weight: 700; }
+  .result-scientific { font-family: 'Playfair Display', serif; font-style: italic; font-size: 1rem; color: rgba(255,255,255,0.7); margin-top: 4px; }
+
+  .result-body { padding: 32px; }
+
+  .result-section {
+    margin-bottom: 28px; padding-bottom: 28px;
+    border-bottom: 1px solid rgba(107,140,94,0.1);
+  }
+  .result-section:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+
+  .section-title {
+    font-size: 0.75rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--sage); margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: rgba(107,140,94,0.2); }
+
+  .section-content { font-size: 0.95rem; line-height: 1.8; color: var(--text-mid); white-space: pre-wrap; }
+
+  .error-box {
+    display: none; background: #fff5f5;
+    border: 1px solid #fca5a5; border-radius: 12px;
+    padding: 20px 24px; color: #dc2626;
+    font-size: 0.9rem; margin-bottom: 16px;
+  }
+  .error-box.show { display: block; }
+
+  .divider {
+    display: flex; align-items: center; gap: 16px;
+    margin: 40px 0; color: var(--sage); font-size: 18px; opacity: 0.4;
+  }
+  .divider::before, .divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--sage); opacity: 0.3;
+  }
+
+  footer { text-align: center; margin-top: 48px; font-size: 0.78rem; color: var(--sage); letter-spacing: 0.05em; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="header-ornament">Botanical Intelligence</div>
+    <h1>植物辨識器</h1>
+    <p class="subtitle">上傳照片，探索植物的名字與故事</p>
+  </header>
+
+  <div class="upload-area" id="uploadArea">
+    <span class="upload-icon">🌱</span>
+    <p class="upload-text">拖曳照片至此，或點擊上傳</p>
+    <p class="upload-hint">支援 JPG、PNG、WebP，建議清晰的植物特寫照片</p>
+    <input type="file" id="fileInput" accept="image/*">
+  </div>
+
+  <div class="preview-container" id="previewContainer">
+    <img class="preview-img" id="previewImg" src="" alt="植物照片預覽">
+    <button class="preview-clear" id="clearBtn">✕</button>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <button class="btn-identify" id="identifyBtn" disabled>
+    🔍 開始辨識植物
+  </button>
+
+  <div class="loading" id="loading">
+    <div class="leaf-spinner">🍃</div>
+    <p class="loading-text">正在分析植物特徵中，請稍候…</p>
+  </div>
+
+  <div class="result-card" id="resultCard">
+    <div class="result-header">
+      <div class="result-tag">辨識結果</div>
+      <div class="result-name" id="resultName">—</div>
+      <div class="result-scientific" id="resultScientific"></div>
+    </div>
+    <div class="result-body">
+      <div class="result-section">
+        <div class="section-title">🌿 外觀特徵</div>
+        <div class="section-content" id="resultFeatures"></div>
+      </div>
+      <div class="result-section">
+        <div class="section-title">🌍 生長環境</div>
+        <div class="section-content" id="resultHabitat"></div>
+      </div>
+      <div class="result-section">
+        <div class="section-title">💧 照顧方式</div>
+        <div class="section-content" id="resultCare"></div>
+      </div>
+      <div class="result-section">
+        <div class="section-title">⚠️ 其他資訊</div>
+        <div class="section-content" id="resultOther"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider">✦</div>
+  <footer>Powered by Google Gemini Vision API &nbsp;·&nbsp; 辨識結果僅供參考</footer>
+
+</div>
+
+<script>
+const uploadArea = document.getElementById('uploadArea');
+const fileInput = document.getElementById('fileInput');
+const previewContainer = document.getElementById('previewContainer');
+const previewImg = document.getElementById('previewImg');
+const clearBtn = document.getElementById('clearBtn');
+const identifyBtn = document.getElementById('identifyBtn');
+const loading = document.getElementById('loading');
+const resultCard = document.getElementById('resultCard');
+const errorBox = document.getElementById('errorBox');
+
+let imageBase64 = null;
+let imageMimeType = null;
+
+uploadArea.addEventListener('click', () => fileInput.click());
+uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+uploadArea.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadArea.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadImage(file);
+});
+
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) loadImage(e.target.files[0]);
+});
+
+function loadImage(file) {
+  imageMimeType = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = e => {
+    imageBase64 = e.target.result.split(',')[1];
+    previewImg.src = e.target.result;
+    previewContainer.classList.add('show');
+    identifyBtn.disabled = false;
+    resultCard.classList.remove('show');
+    errorBox.classList.remove('show');
+  };
+  reader.readAsDataURL(file);
+}
+
+clearBtn.addEventListener('click', () => {
+  imageBase64 = null;
+  previewContainer.classList.remove('show');
+  identifyBtn.disabled = true;
+  fileInput.value = '';
+  resultCard.classList.remove('show');
+});
+
+identifyBtn.addEventListener('click', async () => {
+  if (!imageBase64) return;
+
+  setLoading(true);
+  errorBox.classList.remove('show');
+  resultCard.classList.remove('show');
+
+  try {
+    const response = await fetch('/api/identify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64, mimeType: imageMimeType })
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || '辨識失敗');
+    displayResult(data);
+  } catch (err) {
+    showError('辨識失敗：' + err.message);
+  } finally {
+    setLoading(false);
+  }
+});
+
+function displayResult(r) {
+  document.getElementById('resultName').textContent = r.name || '未知植物';
+  document.getElementById('resultScientific').textContent =
+    [r.english_name, r.scientific_name].filter(Boolean).join('  ·  ');
+  document.getElementById('resultFeatures').textContent = r.features || '—';
+  document.getElementById('resultHabitat').textContent = r.habitat || '—';
+  document.getElementById('resultCare').textContent = r.care || '—';
+  document.getElementById('resultOther').textContent = r.other || '—';
+  resultCard.classList.add('show');
+  resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function setLoading(on) {
+  loading.classList.toggle('show', on);
+  identifyBtn.disabled = on;
+}
+
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.classList.add('show');
+}
+</script>
+</body>
+</html>
