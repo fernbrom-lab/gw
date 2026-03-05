@@ -5,7 +5,6 @@ const path = require('path');
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname, '.')));
 
 // 植物辨識 API
 app.post('/api/identify', async (req, res) => {
@@ -65,6 +64,9 @@ app.post('/api/identify', async (req, res) => {
     res.status(500).json({ error: '辨識失敗：' + err.message });
   }
 });
+
+// 靜態檔案放在路由後面
+app.use(express.static(path.join(__dirname, '.')));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
