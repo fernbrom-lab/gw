@@ -140,11 +140,14 @@ def identify_plant():
             "generationConfig": {"maxOutputTokens": 1000}
         }).encode('utf-8')
 
-        gemini_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+        gemini_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
         req = urllib.request.Request(
             gemini_url,
             data=payload,
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": api_key
+            },
             method="POST"
         )
 
@@ -160,6 +163,11 @@ def identify_plant():
 
         return jsonify(plant_info)
 
+    except urllib.error.HTTPError as e:
+        if e.code == 429:
+            return jsonify({"error": "目前使用人數過多，請稍後 1～2 分鐘再試！"}), 429
+        print(f"植物辨識 HTTP 錯誤: {e.code} {str(e)}")
+        return jsonify({"error": f"辨識失敗：HTTP {e.code}"}), 500
     except Exception as e:
         print(f"植物辨識錯誤: {str(e)}")
         return jsonify({"error": f"辨識失敗：{str(e)}"}), 500
