@@ -507,9 +507,6 @@ def update_farm(farm_id):
     except Exception as e:
         print(f"更新錯誤: {str(e)}")
         return jsonify({"error": str(e)}), 500
-@app.route('/calendar')
-def calendar():
-    return send_from_directory('.', 'calendar.html')
 # ========== 測試連線 ==========
 @app.route('/api/test', methods=['GET'])
 def test():
