@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>蕨積碳足跡 - 活動月曆</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        body { 
+            font-family: 'Noto Sans TC', sans-serif; 
+            background: linear-gradient(135deg, #f0f9f0 0%, #e6f3e6 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+        
+        .calendar-container {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 2rem;
+            padding: 1.5rem;
+            box-shadow: 0 20px 40px rgba(0,40,0,0.1);
+        }
+        
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .calendar-title {
+            font-size: 2rem;
+            font-weight: 900;
+            color: #1e4a2a;
+        }
+        
+        .calendar-nav {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .nav-btn {
+            background: white;
+            border: 2px solid #4caf50;
+            color: #2e7d32;
+            padding: 0.5rem 1.5rem;
+            border-radius: 2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .nav-btn:hover {
+            background: #2e7d32;
+            color: white;
+        }
+        
+        .weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+            font-weight: 700;
+            color: #2e7d32;
+            margin-bottom: 1rem;
+            padding: 0.5rem 0;
+            background: rgba(70, 130, 70, 0.1);
+            border-radius: 1rem;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+        }
+        
+        .calendar-day {
+            background: white;
+            border-radius: 1rem;
+            padding: 0.5rem;
+            min-height: 100px;
+            border: 1px solid rgba(46, 125, 50, 0.2);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .calendar-day:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,60,0,0.1);
+            border-color: #4caf50;
+        }
+        
+        .calendar-day.empty {
+            background: rgba(255, 255, 255, 0.5);
+            cursor: default;
+        }
+        
+        .calendar-day.empty:hover {
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .day-number {
+            font-weight: 700;
+            color: #1e4a2a;
+            margin-bottom: 0.5rem;
+        }
+        
+        .event-item {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.3rem;
+            margin-bottom: 0.2rem;
+            border-radius: 0.3rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .event-item:hover {
+            transform: scale(1.02);
+        }
+        
+        .event-in {
+            background: #e3f2e3;
+            color: #2e7d32;
+            border-left: 3px solid #2e7d32;
+        }
+        
+        .event-growth {
+            background: #e3f0ff;
+            color: #1e4b7e;
+            border-left: 3px solid #1e4b7e;
+        }
+        
+        .event-out {
+            background: #f3e5f5;
+            color: #5e2e7e;
+            border-left: 3px solid #5e2e7e;
+        }
+        
+        .event-count {
+            font-size: 0.6rem;
+            background: #f0f0f0;
+            padding: 0.1rem 0.3rem;
+            border-radius: 1rem;
+            margin-left: 0.2rem;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 2rem;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .event-detail {
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .event-detail:last-child {
+            border-bottom: none;
+        }
+        
+        .event-badge {
+            display: inline-block;
+            padding: 0.2rem 0.8rem;
+            border-radius: 1rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+        
+        .stats-card {
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 1rem;
+            padding: 1rem;
+            border: 1px solid rgba(46, 125, 50, 0.2);
+        }
+        
+        @media (max-width: 768px) {
+            .calendar-day {
+                min-height: 70px;
+                font-size: 0.7rem;
+            }
+            .event-item {
+                font-size: 0.6rem;
+            }
+            .day-number {
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body class="p-4">
+    <div class="max-w-6xl mx-auto">
+        <!-- 標頭 -->
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center gap-3">
+                <img src="/logo.png" alt="蕨積" class="w-12 h-12 object-contain" 
+                     onerror="this.style.display='none'">
+                <div>
+                    <h1 class="text-3xl font-black text-green-800">蕨積碳足跡</h1>
+                    <p class="text-green-600">活動月曆</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <a href="/" class="bg-white px-4 py-2 rounded-full text-sm hover:bg-gray-100 transition">
+                    前台
+                </a>
+                <a href="/admin" class="bg-white px-4 py-2 rounded-full text-sm hover:bg-gray-100 transition">
+                    後台
+                </a>
+            </div>
+        </div>
+
+        <!-- 統計卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="stats-card">
+                <div class="text-sm text-gray-500">本月活動總數</div>
+                <div class="text-2xl font-bold text-green-700" id="month-total">0</div>
+            </div>
+            <div class="stats-card">
+                <div class="text-sm text-gray-500">入庫活動</div>
+                <div class="text-2xl font-bold text-green-600" id="month-in">0</div>
+            </div>
+            <div class="stats-card">
+                <div class="text-sm text-gray-500">生長紀錄</div>
+                <div class="text-2xl font-bold text-blue-600" id="month-growth">0</div>
+            </div>
+            <div class="stats-card">
+                <div class="text-sm text-gray-500">出貨活動</div>
+                <div class="text-2xl font-bold text-purple-600" id="month-out">0</div>
+            </div>
+            <div class="stats-card">
+                <div class="text-sm text-gray-500">活躍植物</div>
+                <div class="text-2xl font-bold text-orange-600" id="active-plants">0</div>
+            </div>
+            <div class="stats-card">
+                <div class="text-sm text-gray-500">總碳吸收</div>
+                <div class="text-2xl font-bold text-blue-700" id="total-carbon">0 kg</div>
+            </div>
+        </div>
+
+        <!-- 月曆 -->
+        <div class="calendar-container">
+            <div class="calendar-header">
+                <h2 class="calendar-title" id="current-month">2026年3月</h2>
+                <div class="calendar-nav">
+                    <button class="nav-btn" onclick="changeMonth(-1)">← 上月</button>
+                    <button class="nav-btn" onclick="changeMonth(1)">下月 →</button>
+                    <button class="nav-btn" onclick="changeMonth(0)">今天</button>
+                </div>
+            </div>
+
+            <div class="weekdays">
+                <div>日</div>
+                <div>一</div>
+                <div>二</div>
+                <div>三</div>
+                <div>四</div>
+                <div>五</div>
+                <div>六</div>
+            </div>
+
+            <div id="calendar-grid" class="calendar-grid">
+                <!-- 月曆會用 JavaScript 動態產生 -->
+            </div>
+        </div>
+
+        <!-- 圖例 -->
+        <div class="flex flex-wrap gap-4 mt-6 justify-center">
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 bg-green-100 border-l-4 border-green-600 rounded"></div>
+                <span class="text-sm">入庫</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 bg-blue-100 border-l-4 border-blue-600 rounded"></div>
+                <span class="text-sm">生長紀錄</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 bg-purple-100 border-l-4 border-purple-600 rounded"></div>
+                <span class="text-sm">出貨</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 活動詳情 Modal -->
+    <div id="eventModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold" id="modal-date-title"></h3>
+                <button onclick="hideModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+            </div>
+            <div id="modal-events" class="space-y-3">
+                <!-- 活動會動態插入 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentDate = new Date();
+        let currentYear = currentDate.getFullYear();
+        let currentMonth = currentDate.getMonth();
+        let allEvents = {};
+
+        // ========== 載入所有活動資料 ==========
+        async function loadAllEvents() {
+            try {
+                // 載入所有批次
+                const farmsRes = await fetch('/api/farms?limit=100');
+                const farmsData = await farmsRes.json();
+                
+                // 載入統計摘要
+                const summaryRes = await fetch('/api/summary');
+                const summaryData = await summaryRes.json();
+                
+                // 更新統計
+                document.getElementById('active-plants').textContent = summaryData.total_plants || 0;
+                document.getElementById('total-carbon').textContent = (summaryData.total_carbon_kg || 0) + ' kg';
+                
+                // 整理活動
+                allEvents = {};
+                
+                farmsData.farms.forEach(farm => {
+                    // 入庫活動
+                    if (farm.in_date) {
+                        addEvent(farm.in_date, {
+                            type: 'in',
+                            id: farm.id,
+                            title: `📦 入庫: ${farm.plant_name || '未命名'} (${farm.initial_quantity}株)`,
+                            batch: farm.batch_number,
+                            plant: farm.plant_name,
+                            quantity: farm.initial_quantity,
+                            supplier: farm.supplier
+                        });
+                    }
+                    
+                    // 生長紀錄
+                    if (farm.growth_records) {
+                        farm.growth_records.forEach(record => {
+                            addEvent(record.record_date, {
+                                type: 'growth',
+                                id: record.id,
+                                title: `📸 生長: ${farm.plant_name || '未命名'} ${record.notes ? ' - ' + record.notes : ''}`,
+                                batch: farm.batch_number,
+                                plant: farm.plant_name,
+                                notes: record.notes,
+                                photo: record.photo_url
+                            });
+                        });
+                    }
+                    
+                    // 出貨紀錄
+                    if (farm.shipments) {
+                        farm.shipments.forEach(shipment => {
+                            addEvent(shipment.shipment_date, {
+                                type: 'out',
+                                id: shipment.id,
+                                title: `📦 出貨: ${farm.plant_name || '未命名'} ${shipment.quantity}株 ${shipment.customer ? '給 ' + shipment.customer : ''}`,
+                                batch: farm.batch_number,
+                                plant: farm.plant_name,
+                                quantity: shipment.quantity,
+                                customer: shipment.customer
+                            });
+                        });
+                    }
+                });
+                
+                // 更新月曆
+                renderCalendar(currentYear, currentMonth);
+                
+            } catch (e) {
+                console.error('載入失敗:', e);
+            }
+        }
+
+        // ========== 新增活動到 allEvents ==========
+        function addEvent(dateStr, event) {
+            if (!dateStr) return;
+            
+            // 格式化日期為 YYYY-MM-DD
+            const date = new Date(dateStr);
+            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            
+            if (!allEvents[key]) {
+                allEvents[key] = [];
+            }
+            allEvents[key].push(event);
+        }
+
+        // ========== 渲染月曆 ==========
+        function renderCalendar(year, month) {
+            const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+            document.getElementById('current-month').textContent = `${year}年 ${monthNames[month]}`;
+            
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            
+            const startDay = firstDay.getDay(); // 0 = 星期日
+            const totalDays = lastDay.getDate();
+            
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
+            
+            // 統計本月活動
+            let monthTotal = 0;
+            let monthIn = 0;
+            let monthGrowth = 0;
+            let monthOut = 0;
+            
+            // 填入空白
+            for (let i = 0; i < startDay; i++) {
+                const emptyDay = document.createElement('div');
+                emptyDay.className = 'calendar-day empty';
+                grid.appendChild(emptyDay);
+            }
+            
+            // 填入日期
+            for (let day = 1; day <= totalDays; day++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dayEvents = allEvents[dateStr] || [];
+                
+                // 統計本月活動
+                monthTotal += dayEvents.length;
+                dayEvents.forEach(event => {
+                    if (event.type === 'in') monthIn++;
+                    else if (event.type === 'growth') monthGrowth++;
+                    else if (event.type === 'out') monthOut++;
+                });
+                
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'calendar-day';
+                dayDiv.onclick = () => showDayEvents(dateStr, dayEvents);
+                
+                let eventsHtml = '';
+                
+                // 最多顯示3個活動，其餘用 +N 表示
+                const displayEvents = dayEvents.slice(0, 3);
+                const remainingCount = dayEvents.length - 3;
+                
+                displayEvents.forEach(event => {
+                    let eventClass = '';
+                    if (event.type === 'in') eventClass = 'event-in';
+                    else if (event.type === 'growth') eventClass = 'event-growth';
+                    else if (event.type === 'out') eventClass = 'event-out';
+                    
+                    eventsHtml += `<div class="event-item ${eventClass}" title="${event.title}">${event.title}</div>`;
+                });
+                
+                if (remainingCount > 0) {
+                    eventsHtml += `<div class="text-xs text-gray-500 mt-1">+${remainingCount} 個活動</div>`;
+                }
+                
+                dayDiv.innerHTML = `
+                    <div class="day-number">${day}</div>
+                    ${eventsHtml}
+                `;
+                
+                grid.appendChild(dayDiv);
+            }
+            
+            // 更新本月統計
+            document.getElementById('month-total').textContent = monthTotal;
+            document.getElementById('month-in').textContent = monthIn;
+            document.getElementById('month-growth').textContent = monthGrowth;
+            document.getElementById('month-out').textContent = monthOut;
+        }
+
+        // ========== 顯示特定日期的活動 ==========
+        function showDayEvents(dateStr, events) {
+            const [year, month, day] = dateStr.split('-');
+            const date = new Date(year, month - 1, day);
+            const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+            
+            document.getElementById('modal-date-title').textContent = 
+                `${year}年 ${monthNames[date.getMonth()]} ${day}日 活動 (${events.length}筆)`;
+            
+            const modalEvents = document.getElementById('modal-events');
+            modalEvents.innerHTML = events.map(event => {
+                let eventClass = '';
+                let eventIcon = '';
+                
+                if (event.type === 'in') {
+                    eventClass = 'event-in';
+                    eventIcon = '📦';
+                } else if (event.type === 'growth') {
+                    eventClass = 'event-growth';
+                    eventIcon = '📸';
+                } else if (event.type === 'out') {
+                    eventClass = 'event-out';
+                    eventIcon = '🚚';
+                }
+                
+                let details = '';
+                if (event.type === 'in') {
+                    details = `
+                        <div class="text-sm">存放區: ${event.batch || '未填'}</div>
+                        <div class="text-sm">數量: ${event.quantity}株</div>
+                        ${event.supplier ? `<div class="text-sm">來源: ${event.supplier}</div>` : ''}
+                    `;
+                } else if (event.type === 'growth') {
+                    details = `
+                        <div class="text-sm">存放區: ${event.batch || '未填'}</div>
+                        ${event.notes ? `<div class="text-sm">觀察: ${event.notes}</div>` : ''}
+                        ${event.photo ? `<img src="${event.photo}" class="mt-2 max-h-40 rounded-lg">` : ''}
+                    `;
+                } else if (event.type === 'out') {
+                    details = `
+                        <div class="text-sm">存放區: ${event.batch || '未填'}</div>
+                        <div class="text-sm">出貨數量: ${event.quantity}株</div>
+                        ${event.customer ? `<div class="text-sm">客戶: ${event.customer}</div>` : ''}
+                    `;
+                }
+                
+                return `
+                    <div class="event-detail ${eventClass} rounded-lg">
+                        <div class="flex items-start gap-2">
+                            <span class="text-lg">${eventIcon}</span>
+                            <div class="flex-1">
+                                <div class="font-bold">${event.title}</div>
+                                ${details}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('eventModal').classList.add('show');
+        }
+
+        // ========== 隱藏 Modal ==========
+        function hideModal() {
+            document.getElementById('eventModal').classList.remove('show');
+        }
+
+        // ========== 切換月份 ==========
+        function changeMonth(delta) {
+            if (delta === 0) {
+                // 回到今天
+                currentDate = new Date();
+                currentYear = currentDate.getFullYear();
+                currentMonth = currentDate.getMonth();
+            } else {
+                currentMonth += delta;
+                if (currentMonth < 0) {
+                    currentMonth = 11;
+                    currentYear--;
+                } else if (currentMonth > 11) {
+                    currentMonth = 0;
+                    currentYear++;
+                }
+            }
+            renderCalendar(currentYear, currentMonth);
+        }
+
+        // ========== 點擊空白處關閉 Modal ==========
+        window.onclick = function(event) {
+            const modal = document.getElementById('eventModal');
+            if (event.target === modal) {
+                hideModal();
+            }
+        }
+
+        // ========== 初始化 ==========
+        window.onload = loadAllEvents;
+    </script>
+</body>
+</html>
