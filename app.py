@@ -140,7 +140,7 @@ def identify_plant():
             "generationConfig": {"maxOutputTokens": 1000}
         }).encode('utf-8')
 
-        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
         req = urllib.request.Request(
             gemini_url,
             data=payload,
