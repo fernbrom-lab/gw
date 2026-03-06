@@ -49,7 +49,9 @@ def index():
 @app.route('/admin')
 def admin(): 
     return send_from_directory('.', 'admin.html')
-
+@app.route('/calendar')
+def calendar():
+    return send_from_directory('.', 'calendar.html')
 # 上傳照片到 Supabase Storage
 def upload_photo(photo, folder="farms"):
     if not photo or not photo.filename:
